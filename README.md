@@ -15,11 +15,11 @@ a ping() loop to indicate its continued operation to the remote server with whic
 
 ## Server Structure
 
-The remote messaging server has more moving parts. Upon initialization, the server creates a Coordinator singleton, which serves as the gateway/dispatcher for the system. 
+The remote messaging server has more moving parts. Upon initialization, the server creates a Dispatcher singleton, which serves as the gateway/dispatcher for the system.
 
-### Coordinator
+### Dispatcher
 
-The Coordinator is constructed to perform as little work as possible, so as to avoid being a bottleneck
+The Dispatcher is constructed to perform as little work as possible, so as to avoid being a bottleneck
 for the system. Whenever a client Join()s, it adds that client's map that maps IP/Port to a ClientManager
 for that Client. When a subsequent remote invocation for that client arrives, it simply looks up the ClientManager for that client, creates a new task for that ClientManager on the task queue, and immediately
 returns success or failure to the client.

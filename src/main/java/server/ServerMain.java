@@ -1,41 +1,33 @@
-import communicate.Communicate;
 import communicate.CommunicateArticle;
-import server.Coordinator;
+import server.Dispatcher;
 
 import java.io.IOException;
-import java.net.*;
 
-import java.util.List;
+import java.net.InetAddress;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class ServerMain {
-    private static final Logger LOGGER = Logger.getLogger( Coordinator.class.getName() );
+    private static final Logger LOGGER = Logger.getLogger( Dispatcher.class.getName() );
 
-    private static Coordinator startServer(String remoteServerIp) throws IOException {
-        Coordinator coordinator = Coordinator.getInstance();
-        coordinator.initialize(
-                Communicate.NAME,
-                CommunicateArticle.MAXCLIENTS,
-                CommunicateArticle.ARTICLE_PROTOCOL,
-                InetAddress.getByName(remoteServerIp),
-                CommunicateArticle.REMOTE_OBJECT_PORT,
-                CommunicateArticle.HEARTBEAT_PORT,
-                InetAddress.getByName(CommunicateArticle.REGISTRY_SERVER_IP),
-                CommunicateArticle.REGISTRY_SERVER_PORT,
-                CommunicateArticle.SERVER_LIST_SIZE);
-        return coordinator;
+    private static Dispatcher startServer(String remoteServerIp) throws IOException {
+        Dispatcher dispatcher =
+                new Dispatcher.Builder(CommunicateArticle.ARTICLE_PROTOCOL, InetAddress.getByName(remoteServerIp))
+                .build();
+
+        dispatcher.initialize();
+        return dispatcher;
     }
 
     private static boolean teardownTest(String remoteServerIp) throws IOException, InterruptedException {
-        Coordinator server = startServer(remoteServerIp);
+        Dispatcher server = startServer(remoteServerIp);
         Thread.sleep(10000);
         server.cleanup();
         return true;
     }
 
     private static String[] getListTest(String remoteServerIp) throws IOException, InterruptedException {
-        Coordinator server = startServer(remoteServerIp);
+        Dispatcher server = startServer(remoteServerIp);
         Thread.sleep(3000);
         String[] serverList = server.getListOfServers();
         if (serverList != null) {

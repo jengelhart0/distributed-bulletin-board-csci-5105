@@ -8,8 +8,6 @@ import java.util.List;
 import java.util.Set;
 
 public interface CommunicateArticle extends Communicate {
-    String NAME = "CommunicateArticle";
-
     int MAXCLIENTS = 2000;
 
     int SERVER_LIST_SIZE = 1024;

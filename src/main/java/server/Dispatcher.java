@@ -18,10 +18,8 @@ import java.util.logging.Logger;
 
 import static java.util.concurrent.Executors.newCachedThreadPool;
 
-public class Coordinator implements Communicate {
-    private static final Logger LOGGER = Logger.getLogger( Coordinator.class.getName() );
-
-    private static Coordinator ourInstance = new Coordinator();
+public class Dispatcher implements Communicate {
+    private static final Logger LOGGER = Logger.getLogger( Dispatcher.class.getName() );
 
     private String name;
     private Protocol protocol;
@@ -48,18 +46,91 @@ public class Coordinator implements Communicate {
     private String registerMessage;
     private String deregisterMessage;
 
-    public static Coordinator getInstance() {
-        return ourInstance;
+    public static class Builder {
+        private Protocol protocol;
+        private InetAddress ip;
+
+        private String name;
+        private int maxClients;
+
+        private int heartbeatPort;
+
+        private int rmiPort;
+
+        private InetAddress registryServerAddress;
+        private int registryServerPort;
+        private int serverListSize;
+
+        public Builder(Protocol protocol, InetAddress ip) throws UnknownHostException {
+            this.protocol = protocol;
+            this.ip = ip;
+
+            // set optional parameters to defaults
+            this.name = Communicate.NAME;
+            this.maxClients = 1000;
+            this.serverListSize = 1024;
+            this.heartbeatPort = 9453;
+            this.rmiPort = 1099;
+            this.registryServerAddress = InetAddress.getByName("localhost");
+            this.registryServerPort = 5104;
+        }
+
+        public Builder name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public Builder maxClients(int maxClients) {
+            this.maxClients = maxClients;
+            return this;
+        }
+
+        public Builder serverListSize(int serverListSize) {
+            this.serverListSize = serverListSize;
+            return this;
+        }
+
+        public Builder heartbeatPort(int heartbeatPort) {
+            this.heartbeatPort = heartbeatPort;
+            return this;
+        }
+
+        public Builder rmiPort(int rmiPort) {
+            this.rmiPort = rmiPort;
+            return this;
+        }
+
+        public Builder registryServerAddress(String registryServerAddress) throws UnknownHostException {
+            this.registryServerAddress = InetAddress.getByName(registryServerAddress);
+            return this;
+        }
+
+        public Builder registryServerPort(int registryServerPort) {
+            this.registryServerPort = registryServerPort;
+            return this;
+        }
+
+        public Dispatcher build() {
+            return new Dispatcher(this);
+        }
     }
 
-    private Coordinator() {
+    private Dispatcher(Builder builder) {
+        this.name = builder.name;
+        this.protocol = builder.protocol;
+        this.ip = builder.ip;
+        this.maxClients = builder.maxClients;
+        this.heartbeatPort = builder.heartbeatPort;
+        this.rmiPort = builder.rmiPort;
+        this.registryServerAddress = builder.registryServerAddress;
+        this.registryServerPort = builder.registryServerPort;
+        this.serverListSize = builder.serverListSize;
     }
 
-    public void initialize(String name, int maxClients, Protocol protocol, InetAddress rmiIp, int rmiPort, int heartbeatPort,
-                    InetAddress registryServerIp, int registryServerPort, int serverListSize) {
+    public void initialize() {
         try {
-            setCommunicationVariables(name, maxClients, protocol, rmiIp, rmiPort, heartbeatPort,
-                    registryServerIp, registryServerPort, serverListSize);
+            setCommunicationVariables(name, maxClients, protocol, ip, rmiPort, heartbeatPort,
+                    registryServerAddress, registryServerPort, serverListSize);
             createClientTaskExecutor();
             startHeartbeat();
             startSubscriptionPullScheduler();
@@ -85,8 +156,8 @@ public class Coordinator implements Communicate {
         }
     }
 
-    private void setCommunicationVariables(String name, int maxClients, Protocol protocol, InetAddress rmiIp, int rmiPort,
-           int heartbeatPort, InetAddress registryServerIp, int registryServerPort, int serverListSize)
+    private void setCommunicationVariables(String name, int maxClients, Protocol protocol, InetAddress ip, int rmiPort,
+                                           int heartbeatPort, InetAddress registryServerIp, int registryServerPort, int serverListSize)
             throws UnknownHostException {
 
         this.name = name;
@@ -99,7 +170,7 @@ public class Coordinator implements Communicate {
 
         this.heartbeatPort = heartbeatPort;
 
-        this.ip = rmiIp;
+        this.ip = ip;
         this.rmiPort = rmiPort;
 
         this.registryServerAddress = registryServerIp;
@@ -154,7 +225,7 @@ public class Coordinator implements Communicate {
                     (Communicate) UnicastRemoteObject.exportObject(this, 0);
             Registry registry = LocateRegistry.createRegistry(this.rmiPort);
             registry.rebind(this.name, stub);
-            LOGGER.log(Level.INFO, "Coordinator bound");
+            LOGGER.log(Level.INFO, "Dispatcher bound");
         } catch (RemoteException re) {
             LOGGER.log(Level.SEVERE, re.toString());
             re.printStackTrace();
