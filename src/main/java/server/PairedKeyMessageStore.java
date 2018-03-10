@@ -6,16 +6,11 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class PairedKeyMessageStore implements MessageStore {
-    private static PairedKeyMessageStore ourInstance = new PairedKeyMessageStore();
 
     private Map<String, PublicationList> store;
     private Date lastStoreFlush;
 
-    public static PairedKeyMessageStore getInstance() {
-        return ourInstance;
-    }
-
-    private PairedKeyMessageStore() {
+    PairedKeyMessageStore() {
         this.store = new ConcurrentHashMap<>();
         this.lastStoreFlush = new Date();
     }

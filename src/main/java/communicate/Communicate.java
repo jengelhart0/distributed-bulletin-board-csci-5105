@@ -1,5 +1,7 @@
 package communicate;
 
+import server.ReplicatedPubSubServer;
+
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
@@ -18,5 +20,6 @@ public interface Communicate extends Remote {
     boolean Unsubscribe(String IP, int Port, String Message) throws RemoteException;
     boolean Publish(String Message, String IP, int Port) throws RemoteException;
     boolean PublishServer(String Message, String IP, int Port) throws RemoteException;
+    ReplicatedPubSubServer getCoordinator() throws RemoteException;
     boolean Ping() throws RemoteException;
 }

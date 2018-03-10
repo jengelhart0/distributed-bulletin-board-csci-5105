@@ -10,10 +10,10 @@ public interface CommunicationManager {
         PUBLISH, SUBSCRIBE, UNSUBSCRIBE, PULL_MATCHES
     }
 
-    Runnable task(Message message, Call call);
+    Runnable task(Message message, MessageStore store, Call call);
     void subscribe(Message message);
     void unsubscribe(Message message);
-    void publish(Message message);
-    void pullSubscriptionMatchesFromStore() throws IOException;
+    void publish(Message message, MessageStore store);
+    void pullSubscriptionMatchesFromStore(MessageStore store) throws IOException;
     void informManagerThatClientLeft();
 }

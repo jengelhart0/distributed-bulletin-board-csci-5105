@@ -30,8 +30,6 @@ public class ClientManager implements CommunicationManager {
     private final Object subscriptionLock = new Object();
     private final Object publicationLock = new Object();
 
-    private static final MessageStore store = PairedKeyMessageStore.getInstance();
-
     ClientManager(String clientIp, int clientPort, Protocol protocol) {
         this.clientIp = clientIp;
         this.clientPort = clientPort;
@@ -44,16 +42,16 @@ public class ClientManager implements CommunicationManager {
         this.publications = new ArrayList<>();
     }
 
-    public Runnable task(Message message, CommunicationManager.Call call) {
+    public Runnable task(Message message, MessageStore store, Call call) {
         switch(call) {
             case SUBSCRIBE:
                 return () -> subscribe(message);
             case PUBLISH:
-                return () -> publish(message);
+                return () -> publish(message, store);
             case UNSUBSCRIBE:
                 return () -> unsubscribe(message);
             case PULL_MATCHES:
-                return this::pullSubscriptionMatchesFromStore;
+                return () -> pullSubscriptionMatchesFromStore(store);
             default:
                 throw new IllegalArgumentException("Task call made to ClientManager not recognized.");
         }
@@ -81,7 +79,7 @@ public class ClientManager implements CommunicationManager {
     }
 
     @Override
-    public void publish(Message message) {
+    public void publish(Message message, MessageStore store) {
         synchronized (publicationLock) {
             this.publications.add(message);
         }
@@ -89,7 +87,7 @@ public class ClientManager implements CommunicationManager {
     }
 
     @Override
-    public void pullSubscriptionMatchesFromStore() {
+    public void pullSubscriptionMatchesFromStore(MessageStore store) {
         if(!clientLeft) {
             // Get all subscriptions into cheap container so we get out of synchronized block fast
             // (as store.retrieve(...) is relatively intensive).
@@ -98,7 +96,7 @@ public class ClientManager implements CommunicationManager {
                 subscriptionsToMatch = subscriptions.toArray(new Message[subscriptions.size()]);
             }
 
-            Set<String> toDeliver = getSubscriptionMatches(subscriptionsToMatch);
+            Set<String> toDeliver = getSubscriptionMatches(subscriptionsToMatch, store);
 
             int messageSize = this.protocol.getMessageSize();
             try {
@@ -113,9 +111,8 @@ public class ClientManager implements CommunicationManager {
         }
     }
 
-    private Set<String> getSubscriptionMatches(Message[] subscriptionsToMatch) {
+    private Set<String> getSubscriptionMatches(Message[] subscriptionsToMatch, MessageStore store) {
         Set<String> toDeliver = new HashSet<>();
-        MessageStore store = PairedKeyMessageStore.getInstance();
         for(Message subscription: subscriptionsToMatch) {
             toDeliver.addAll(store.retrieve(subscription));
         }

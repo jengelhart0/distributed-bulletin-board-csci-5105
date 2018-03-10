@@ -182,6 +182,8 @@ public class Client implements Runnable {
         this.listener.forceCloseSocket();
     }
 
+    public Communicate getServer() { return this.communicate; }
+
     public List<Message> getCurrentMessageFeed() {
         return this.listener.getCurrentMessageFeed();
     }

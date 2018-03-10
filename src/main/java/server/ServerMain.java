@@ -1,5 +1,5 @@
 import communicate.CommunicateArticle;
-import server.Dispatcher;
+import server.ReplicatedPubSubServer;
 
 import java.io.IOException;
 
@@ -8,26 +8,26 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class ServerMain {
-    private static final Logger LOGGER = Logger.getLogger( Dispatcher.class.getName() );
+    private static final Logger LOGGER = Logger.getLogger( ReplicatedPubSubServer.class.getName() );
 
-    private static Dispatcher startServer(String remoteServerIp) throws IOException {
-        Dispatcher dispatcher =
-                new Dispatcher.Builder(CommunicateArticle.ARTICLE_PROTOCOL, InetAddress.getByName(remoteServerIp))
+    private static ReplicatedPubSubServer startServer(String remoteServerIp) throws IOException {
+        ReplicatedPubSubServer replicatedPubSubServer =
+                new ReplicatedPubSubServer.Builder(CommunicateArticle.ARTICLE_PROTOCOL, InetAddress.getByName(remoteServerIp))
                 .build();
 
-        dispatcher.initialize();
-        return dispatcher;
+        replicatedPubSubServer.initialize();
+        return replicatedPubSubServer;
     }
 
     private static boolean teardownTest(String remoteServerIp) throws IOException, InterruptedException {
-        Dispatcher server = startServer(remoteServerIp);
+        ReplicatedPubSubServer server = startServer(remoteServerIp);
         Thread.sleep(10000);
         server.cleanup();
         return true;
     }
 
     private static String[] getListTest(String remoteServerIp) throws IOException, InterruptedException {
-        Dispatcher server = startServer(remoteServerIp);
+        ReplicatedPubSubServer server = startServer(remoteServerIp);
         Thread.sleep(3000);
         String[] serverList = server.getListOfServers();
         if (serverList != null) {

@@ -4,7 +4,7 @@ import java.util.*;
 import java.util.logging.Logger;
 
 class PublicationList {
-    private static final Logger LOGGER = Logger.getLogger( Dispatcher.class.getName() );
+    private static final Logger LOGGER = Logger.getLogger( ReplicatedPubSubServer.class.getName() );
 
     private SortedSet<String> publications;
     private final Object listLock = new Object();

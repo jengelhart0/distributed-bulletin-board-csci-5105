@@ -6,29 +6,37 @@ import message.Protocol;
 
 import java.io.IOException;
 import java.net.*;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.HashSet;
 import java.util.Map;
+import client.Client;
+
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.concurrent.Executors.newCachedThreadPool;
 
-public class Dispatcher implements Communicate {
-    private static final Logger LOGGER = Logger.getLogger( Dispatcher.class.getName() );
+public class ReplicatedPubSubServer implements Communicate {
+    private static final Logger LOGGER = Logger.getLogger( ReplicatedPubSubServer.class.getName() );
 
     private String name;
     private Protocol protocol;
     private InetAddress ip;
+    private int rmiPort;
 
     private int maxClients;
     private int numClients;
 
     private static final Object numClientsLock = new Object();
+    private static final Object coordinatorLock = new Object();
 
     private ExecutorService clientTaskExecutor;
 
@@ -37,14 +45,21 @@ public class Dispatcher implements Communicate {
     private HeartbeatListener heartbeatListener;
     private int heartbeatPort;
 
-    private int rmiPort;
-
     private InetAddress registryServerAddress;
     private int registryServerPort;
     private int serverListSize;
 
     private String registerMessage;
     private String deregisterMessage;
+
+    private MessageStore store;
+
+    private ReplicatedPubSubServer coordinator;
+
+    // TODO: going to have to override equals/hashcode to make this work; base on ip/port? for checking client's last server for writes
+    // Alternatively, just make this a list and iterate through until you find the one that matches client's last server
+    private ConcurrentMap<String, Client> clientsForReplicatedPeers;
+    private int nextPeerListenPort;
 
     public static class Builder {
         private Protocol protocol;
@@ -61,6 +76,11 @@ public class Dispatcher implements Communicate {
         private int registryServerPort;
         private int serverListSize;
 
+        private int startingPeerListenPort;
+
+        private MessageStore store;
+
+
         public Builder(Protocol protocol, InetAddress ip) throws UnknownHostException {
             this.protocol = protocol;
             this.ip = ip;
@@ -73,6 +93,8 @@ public class Dispatcher implements Communicate {
             this.rmiPort = 1099;
             this.registryServerAddress = InetAddress.getByName("localhost");
             this.registryServerPort = 5104;
+            this.startingPeerListenPort = 8888;
+            this.store = new PairedKeyMessageStore();
         }
 
         public Builder name(String name) {
@@ -100,6 +122,11 @@ public class Dispatcher implements Communicate {
             return this;
         }
 
+        public Builder startingPeerListenPort(int peerListenPort) {
+            this.startingPeerListenPort = peerListenPort;
+            return this;
+        }
+
         public Builder registryServerAddress(String registryServerAddress) throws UnknownHostException {
             this.registryServerAddress = InetAddress.getByName(registryServerAddress);
             return this;
@@ -110,12 +137,17 @@ public class Dispatcher implements Communicate {
             return this;
         }
 
-        public Dispatcher build() {
-            return new Dispatcher(this);
+        public Builder store(MessageStore store) {
+            this.store = store;
+            return this;
+        }
+
+        public ReplicatedPubSubServer build() {
+            return new ReplicatedPubSubServer(this);
         }
     }
 
-    private Dispatcher(Builder builder) {
+    private ReplicatedPubSubServer(Builder builder) {
         this.name = builder.name;
         this.protocol = builder.protocol;
         this.ip = builder.ip;
@@ -125,6 +157,10 @@ public class Dispatcher implements Communicate {
         this.registryServerAddress = builder.registryServerAddress;
         this.registryServerPort = builder.registryServerPort;
         this.serverListSize = builder.serverListSize;
+        this.store = builder.store;
+        this.nextPeerListenPort = builder.startingPeerListenPort;
+
+        this.clientsForReplicatedPeers = new ConcurrentHashMap<>();
     }
 
     public void initialize() {
@@ -136,7 +172,8 @@ public class Dispatcher implements Communicate {
             startSubscriptionPullScheduler();
             makeThisARemoteCommunicationServer();
             registerWithRegistryServer();
-        } catch (IOException | RuntimeException e) {
+            discoverReplicatedPeers();
+        } catch (IOException | NotBoundException | RuntimeException e) {
             LOGGER.log(Level.SEVERE, "Failed on server initialization: " + e.toString());
             e.printStackTrace();
             cleanup();
@@ -225,7 +262,7 @@ public class Dispatcher implements Communicate {
                     (Communicate) UnicastRemoteObject.exportObject(this, 0);
             Registry registry = LocateRegistry.createRegistry(this.rmiPort);
             registry.rebind(this.name, stub);
-            LOGGER.log(Level.INFO, "Dispatcher bound");
+            LOGGER.log(Level.INFO, "ReplicatedPubSubServer bound");
         } catch (RemoteException re) {
             LOGGER.log(Level.SEVERE, re.toString());
             re.printStackTrace();
@@ -246,7 +283,7 @@ public class Dispatcher implements Communicate {
         sendRegistryServerMessage(this.deregisterMessage);
     }
 
-    public String[] getListOfServers() throws IOException {
+    public Set<String> getListOfServers() throws IOException {
         int listSizeinBytes = this.serverListSize;
         DatagramPacket registryPacket = new DatagramPacket(new byte[listSizeinBytes], listSizeinBytes);
 
@@ -262,9 +299,9 @@ public class Dispatcher implements Communicate {
         String[] rawServerList = new String(registryPacket.getData(), 0, registryPacket.getLength(), "UTF8")
                 .split(this.protocol.getDelimiter());
 
-        String[] results = new String[rawServerList.length / 2];
+        Set<String> results = new HashSet<>();
         for (int i = 0; i < rawServerList.length; i+=2) {
-            results[i / 2] = rawServerList[i] + ";" + rawServerList[i+1];
+            results.add(rawServerList[i] + ";" + rawServerList[i+1]);
         }
         return results;
     }
@@ -281,6 +318,59 @@ public class Dispatcher implements Communicate {
         DatagramPacket packet = new DatagramPacket(new byte[messageSize], messageSize, this.registryServerAddress, registryServerPort);
         packet.setData(rawMessage.getBytes());
         return packet;
+    }
+
+    private void discoverReplicatedPeers() throws IOException, NotBoundException {
+        Set<String> peersAndThis = getListOfServers();
+        joinDiscoveredPeers(peersAndThis);
+        leaveStalePeers(peersAndThis);
+        findCoordinator();
+    }
+
+    private void joinDiscoveredPeers(Set<String> replicatedServers) throws IOException, NotBoundException {
+
+        replicatedServers.remove(getThisServersIpPortString());
+
+        for(String server: replicatedServers) {
+            String[] serverLocation = server.split(";");
+            String address = serverLocation[0];
+            int port = Integer.parseInt(serverLocation[1]);
+
+            if(!clientsForReplicatedPeers.containsKey(server)) {
+                Client peerClient = new Client(address, port, name, protocol, nextPeerListenPort++);
+                new Thread(peerClient).start();
+
+                clientsForReplicatedPeers.put(server, peerClient);
+            }
+        }
+    }
+
+    private void leaveStalePeers(Set<String> peers) {
+        for(String server: clientsForReplicatedPeers.keySet()) {
+            if(!peers.contains(server)) {
+                Client toRemove = clientsForReplicatedPeers.remove(server);
+                toRemove.terminateClient();
+            }
+        }
+    }
+
+    private void findCoordinator() throws RemoteException {
+        ReplicatedPubSubServer currentCoordinator = null;
+        if(clientsForReplicatedPeers.isEmpty()) {
+            currentCoordinator = this;
+        } else {
+            for(Client peerClient: clientsForReplicatedPeers.values()) {
+                ReplicatedPubSubServer peerCoordinator = peerClient.getServer().getCoordinator();
+                if (peerCoordinator != null) {
+                    currentCoordinator = peerCoordinator;
+                }
+            }
+        }
+
+        synchronized (coordinatorLock) {
+            this.coordinator = currentCoordinator;
+        }
+
     }
 
     @Override
@@ -310,18 +400,18 @@ public class Dispatcher implements Communicate {
     }
 
     @Override
-    public boolean Subscribe(String IP, int Port, String Article) throws RemoteException {
-        return createMessageTask(IP, Port, Article, CommunicationManager.Call.SUBSCRIBE, true);
+    public boolean Subscribe(String IP, int Port, String Message) throws RemoteException {
+        return createMessageTask(IP, Port, Message, CommunicationManager.Call.SUBSCRIBE, true);
     }
 
     @Override
-    public boolean Unsubscribe(String IP, int Port, String Article) throws RemoteException {
-        return createMessageTask(IP, Port, Article, CommunicationManager.Call.UNSUBSCRIBE, true);
+    public boolean Unsubscribe(String IP, int Port, String Message) throws RemoteException {
+        return createMessageTask(IP, Port, Message, CommunicationManager.Call.UNSUBSCRIBE, true);
     }
 
     @Override
-    public boolean Publish(String Article, String IP, int Port) throws RemoteException {
-        return createMessageTask(IP, Port, Article, CommunicationManager.Call.PUBLISH, false);
+    public boolean Publish(String Message, String IP, int Port) throws RemoteException {
+        return createMessageTask(IP, Port, Message, CommunicationManager.Call.PUBLISH, false);
     }
 
     @Override
@@ -337,7 +427,7 @@ public class Dispatcher implements Communicate {
     }
 
     @Override
-    public boolean PublishServer(String Article, String IP, int Port) throws RemoteException {
+    public boolean PublishServer(String Message, String IP, int Port) throws RemoteException {
         // TODO: optional
         throw new RemoteException("PublishServer not implemented!;");
     }
@@ -345,6 +435,13 @@ public class Dispatcher implements Communicate {
     @Override
     public boolean Ping() throws RemoteException {
         return true;
+    }
+
+    @Override
+    public ReplicatedPubSubServer getCoordinator() {
+        synchronized (coordinatorLock) {
+            return coordinator;
+        }
     }
 
     private boolean createMessageTask(String ip, int port, String rawMessage,
@@ -378,10 +475,14 @@ public class Dispatcher implements Communicate {
     }
 
     private void queueTaskFor(CommunicationManager manager, CommunicationManager.Call call, Message message) {
-        this.clientTaskExecutor.execute(manager.task(message, call));
+        this.clientTaskExecutor.execute(manager.task(message, store, call));
     }
 
     private String getIpPortString(String ip, int port) {
         return ip + this.protocol.getDelimiter() + Integer.toString(port);
+    }
+
+    public String getThisServersIpPortString() {
+        return getIpPortString(ip.getHostAddress(), rmiPort);
     }
 }
