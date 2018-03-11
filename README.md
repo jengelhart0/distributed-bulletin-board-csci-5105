@@ -1,7 +1,7 @@
 Documentation for CSci 5105 Distributed Bulletin Board System
 Author: Joey Engelhart, engel429
 
-Below is README for the publish-subscribe system (repository available), as the bulletin board uses it as its core messaging but is still in progress.
+Below is README for the publish-subscribe system (repository available here: https://github.com/jengelhart0/publish-subscribe-csci-5105), as the bulletin board uses it as its core messaging but is still in progress.
 
 # System Description:
 
