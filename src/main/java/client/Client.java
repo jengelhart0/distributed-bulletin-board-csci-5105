@@ -21,6 +21,7 @@ public class Client implements Runnable {
     private static final Logger LOGGER = Logger.getLogger( Client.class.getName() );
 
     private Communicate communicate = null;
+    private final Object communicateLock = new Object();
     private String communicateName;
     private String remoteHost;
     private int remoteServerPort;
@@ -34,17 +35,45 @@ public class Client implements Runnable {
 
     private InetAddress localAddress;
 
-    public Client (String remoteHost, int remoteServerPort, String communicateName, Protocol protocol,
-                   int listenPort) throws IOException, NotBoundException {
-        this.remoteHost = remoteHost;
-        this.remoteServerPort = remoteServerPort;
-        this.communicateName = communicateName;
+    public Client(Protocol protocol, int listenPort) throws IOException, NotBoundException {
         this.protocol = protocol;
         this.localAddress = InetAddress.getLocalHost();
         this.listenPort = listenPort;
         this.terminate = false;
 
-        initializeRemoteCommunication();
+        startMessageListener();
+        new Thread(this).start();
+    }
+
+    private void startMessageListener() throws SocketException {
+        this.listener = new ClientListener(this.protocol);
+        this.listener.listenAt(this.listenPort, this.localAddress);
+        Thread listenerThread = new Thread(this.listener);
+        listenerThread.start();
+
+        if(!listenerThread.isAlive()) {
+            throw new RuntimeException();
+        }
+    }
+
+    public void initializeRemoteCommunication(String remoteHost, int remoteServerPort, String communicateName)
+            throws RemoteException, NotBoundException {
+        this.remoteHost = remoteHost;
+        this.remoteServerPort = remoteServerPort;
+        this.communicateName = communicateName;
+
+        establishRemoteObject();
+        if (!join()) {
+            LOGGER.log(Level.WARNING, "Server refused join (likely because it already has MAXCLIENTS). Cleaning up...");
+            cleanup();
+        }
+    }
+
+    private void establishRemoteObject() throws RemoteException, NotBoundException {
+        Registry registry = LocateRegistry.getRegistry(this.remoteHost, this.remoteServerPort);
+        synchronized (communicateLock) {
+            this.communicate = (Communicate) registry.lookup(this.communicateName);
+        }
     }
 
     public boolean join() {
@@ -77,7 +106,10 @@ public class Client implements Runnable {
 
     private boolean communicateWithRemote(Message message, RemoteMessageCall call) {
         try {
-            boolean isCallSuccessful = makeCall(message, call);
+            boolean isCallSuccessful;
+            synchronized (communicateLock) {
+                isCallSuccessful = makeCall(message, call);
+            }
             if (!isCallSuccessful) {
                 throw new RuntimeException("RMI returned false.");
             }
@@ -93,8 +125,7 @@ public class Client implements Runnable {
 
         if (this.communicate == null) {
             throw new IllegalArgumentException(
-                    "It appears client's remote communication is unestablished. " +
-                            "Ensure you called start() on client thread."
+                    "It appears client's remote communication is unestablished."
             );
         }
 
@@ -104,7 +135,9 @@ public class Client implements Runnable {
                 case JOIN:
                     return this.communicate.Join(address, this.listenPort);
                 case LEAVE:
-                    return this.communicate.Leave(address, this.listenPort);
+                    this.communicate.Leave(address, this.listenPort);
+                    this.communicate = null;
+                    return true;
                 default:
                     throw new IllegalArgumentException(
                             "Either Invalid RemoteMessageCall passed or message was null");
@@ -134,7 +167,11 @@ public class Client implements Runnable {
                         break;
                     }
                 }
-                ping();
+                synchronized (communicateLock) {
+                    if (communicate != null) {
+                        ping();
+                    }
+                }
                 Thread.sleep(10000);
             }
         } catch (RemoteException | InterruptedException e) {
@@ -143,31 +180,6 @@ public class Client implements Runnable {
         } finally {
             cleanup();
         }
-    }
-
-    private void initializeRemoteCommunication() throws RemoteException, NotBoundException, SocketException {
-        startMessageListener();
-        establishRemoteObject();
-        if (!join()) {
-            LOGGER.log(Level.WARNING, "Server refused join (likely because it already has MAXCLIENTS). Cleaning up...");
-            cleanup();
-        }
-    }
-
-    private void startMessageListener() throws SocketException {
-        this.listener = new ClientListener(this.protocol);
-        this.listener.listenAt(this.listenPort, this.localAddress);
-        Thread listenerThread = new Thread(this.listener);
-        listenerThread.start();
-
-        if(!listenerThread.isAlive()) {
-            throw new RuntimeException();
-        }
-    }
-
-    private void establishRemoteObject() throws RemoteException, NotBoundException {
-        Registry registry = LocateRegistry.getRegistry(this.remoteHost);
-        this.communicate = (Communicate) registry.lookup(this.communicateName);
     }
 
     public void terminateClient() {
@@ -182,7 +194,11 @@ public class Client implements Runnable {
         this.listener.forceCloseSocket();
     }
 
-    public Communicate getServer() { return this.communicate; }
+    public Communicate getServer() {
+        synchronized (communicateLock) {
+            return this.communicate;
+        }
+    }
 
     public List<Message> getCurrentMessageFeed() {
         return this.listener.getCurrentMessageFeed();

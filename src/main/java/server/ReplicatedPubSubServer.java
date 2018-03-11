@@ -5,16 +5,12 @@ import message.Protocol;
 
 import java.io.IOException;
 import java.net.*;
-import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import client.Client;
 
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -24,23 +20,16 @@ public class ReplicatedPubSubServer implements Communicate {
     private String name;
     private Protocol protocol;
     private InetAddress ip;
-    private int rmiPort;
+    private int port;
 
     private int maxClients;
     private int numClients;
 
     private final Object numClientsLock = new Object();
-    private final Object coordinatorLock = new Object();
 
     private Dispatcher dispatcher;
     private RegistryServerLiaison registryServerLiaison;
-
-    private ReplicatedPubSubServer coordinator;
-
-    // TODO: going to have to override equals/hashcode to make this work; base on ip/port? for checking client's last server for writes
-    // Alternatively, just make this a list and iterate through until you find the one that matches client's last server
-    private ConcurrentMap<String, Client> clientsForReplicatedPeers;
-    private int nextPeerListenPort;
+    private PeerListManager peerListManager;
 
     public static class Builder {
         private Protocol protocol;
@@ -49,7 +38,7 @@ public class ReplicatedPubSubServer implements Communicate {
         private String name;
         private int maxClients;
 
-        private int rmiPort;
+        private int serverPort;
 
         private InetAddress registryServerAddress;
         private int registryServerPort;
@@ -72,7 +61,7 @@ public class ReplicatedPubSubServer implements Communicate {
             // set optional parameters to defaults
             this.name = Communicate.NAME;
             this.maxClients = 1000;
-            this.rmiPort = 1099;
+            this.serverPort = 1099;
             this.registryServerAddress = InetAddress.getByName("localhost");
             this.registryServerPort = 5104;
             this.registryMessageDelimiter = ";";
@@ -124,8 +113,8 @@ public class ReplicatedPubSubServer implements Communicate {
             return this;
         }
 
-        public Builder rmiPort(int rmiPort) {
-            this.rmiPort = rmiPort;
+        public Builder serverPort(int serverPort) {
+            this.serverPort = serverPort;
             return this;
         }
 
@@ -154,6 +143,7 @@ public class ReplicatedPubSubServer implements Communicate {
         this.name = builder.name;
         this.protocol = builder.protocol;
         this.ip = builder.ip;
+        this.port = builder.serverPort;
         this.maxClients = builder.maxClients;
 
         this.dispatcher = new Dispatcher(this.protocol, builder.store, builder.shouldRetrieveMatchesAutomatically);
@@ -165,19 +155,16 @@ public class ReplicatedPubSubServer implements Communicate {
                 builder.registryMessageSize,
                 builder.serverListSize);
 
-        this.rmiPort = builder.rmiPort;
-
-        this.nextPeerListenPort = builder.startingPeerListenPort;
-        this.clientsForReplicatedPeers = new ConcurrentHashMap<>();
+        this.peerListManager = new PeerListManager(name, ip, port, protocol,
+                registryServerLiaison, builder.startingPeerListenPort);
     }
 
     public void initialize() {
         try {
-            setCommunicationVariables(name, maxClients, protocol, ip, rmiPort);
+            setCommunicationVariables(name, maxClients, protocol, ip, port);
             makeThisARemoteCommunicationServer();
-            registryServerLiaison.initialize(name, ip, rmiPort);
-            //discoverReplicatedPeers();
             dispatcher.initialize();
+            peerListManager.initialize();
         } catch (IOException | RuntimeException e) {
             LOGGER.log(Level.SEVERE, "Failed on server initialization: " + e.toString());
             e.printStackTrace();
@@ -196,9 +183,7 @@ public class ReplicatedPubSubServer implements Communicate {
         }
     }
 
-    private void setCommunicationVariables(String name, int maxClients, Protocol protocol, InetAddress ip, int rmiPort)
-            throws UnknownHostException {
-
+    private void setCommunicationVariables(String name, int maxClients, Protocol protocol, InetAddress ip, int rmiPort) {
         this.name = name;
         this.protocol = protocol;
 
@@ -206,78 +191,24 @@ public class ReplicatedPubSubServer implements Communicate {
         this.numClients = 0;
 
         this.ip = ip;
-        this.rmiPort = rmiPort;
+        this.port = rmiPort;
     }
-
-
 
     private void makeThisARemoteCommunicationServer() {
         LOGGER.log(Level.INFO, "IP " + this.ip.getHostAddress());
-        LOGGER.log(Level.INFO, "Port " + Integer.toString(this.rmiPort));
+        LOGGER.log(Level.INFO, "Port " + Integer.toString(this.port));
 
         try {
             System.setProperty("java.rmi.server.hostname", this.ip.getHostAddress());
 
             Communicate stub =
                     (Communicate) UnicastRemoteObject.exportObject(this, 0);
-            Registry registry = LocateRegistry.createRegistry(this.rmiPort);
+            Registry registry = LocateRegistry.createRegistry(this.port);
             registry.rebind(this.name, stub);
             LOGGER.log(Level.INFO, "ReplicatedPubSubServer bound");
         } catch (RemoteException re) {
             LOGGER.log(Level.SEVERE, re.toString());
             re.printStackTrace();
-        }
-    }
-
-//    private void discoverReplicatedPeers() throws IOException, NotBoundException {
-//        Set<String> peersAndThis = getListOfServers();
-//        joinDiscoveredPeers(peersAndThis);
-//        leaveStalePeers(peersAndThis);
-//        findCoordinator();
-//    }
-
-    private void joinDiscoveredPeers(Set<String> replicatedServers) throws IOException, NotBoundException {
-
-        replicatedServers.remove(getThisServersIpPortString());
-
-        for(String server: replicatedServers) {
-            String[] serverLocation = server.split(";");
-            String address = serverLocation[0];
-            int port = Integer.parseInt(serverLocation[1]);
-
-            if(!clientsForReplicatedPeers.containsKey(server)) {
-                Client peerClient = new Client(address, port, name, protocol, nextPeerListenPort++);
-                new Thread(peerClient).start();
-
-                clientsForReplicatedPeers.put(server, peerClient);
-            }
-        }
-    }
-
-    private void leaveStalePeers(Set<String> peers) {
-        for(String server: clientsForReplicatedPeers.keySet()) {
-            if(!peers.contains(server)) {
-                Client toRemove = clientsForReplicatedPeers.remove(server);
-                toRemove.terminateClient();
-            }
-        }
-    }
-
-    private void findCoordinator() throws RemoteException {
-        ReplicatedPubSubServer currentCoordinator = null;
-        if(clientsForReplicatedPeers.isEmpty()) {
-            currentCoordinator = this;
-        } else {
-            for(Client peerClient: clientsForReplicatedPeers.values()) {
-                ReplicatedPubSubServer peerCoordinator = peerClient.getServer().getCoordinator();
-                if (peerCoordinator != null) {
-                    currentCoordinator = peerCoordinator;
-                }
-            }
-        }
-
-        synchronized (coordinatorLock) {
-            this.coordinator = currentCoordinator;
         }
     }
 
@@ -327,9 +258,7 @@ public class ReplicatedPubSubServer implements Communicate {
 
     @Override
     public ReplicatedPubSubServer getCoordinator() {
-        synchronized (coordinatorLock) {
-            return coordinator;
-        }
+        return peerListManager.getCoordinator();
     }
 
     public Set<String> getListOfServers() throws IOException {
@@ -337,6 +266,6 @@ public class ReplicatedPubSubServer implements Communicate {
     }
 
     public String getThisServersIpPortString() {
-        return ServerUtils.getIpPortString(ip.getHostAddress(), rmiPort, protocol);
+        return ServerUtils.getIpPortString(ip.getHostAddress(), port, protocol);
     }
 }

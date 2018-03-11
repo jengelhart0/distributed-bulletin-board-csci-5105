@@ -107,14 +107,11 @@ class RegistryServerLiaison {
                 .split(registryMessageDelimiter);
 
         Set<String> results = new HashSet<>();
-        for (int i = 0; i < rawServerList.length; i+=2) {
-            results.add(rawServerList[i] + ";" + rawServerList[i+1]);
+        for (int i = 0; i < rawServerList.length - 1; i += 2) {
+            results.add(rawServerList[i] + ";" + rawServerList[i + 1]);
         }
         return results;
     }
 
-//    boolean isAlive() {
-//        return heartbeatListener.isAlive();
-//    }
-
+    String getDelimiter() { return this.registryMessageDelimiter; }
 }
