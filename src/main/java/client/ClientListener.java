@@ -14,10 +14,12 @@ import java.util.logging.Logger;
 public class ClientListener extends Listener {
     private static final Logger LOGGER = Logger.getLogger( ClientListener.class.getName() );
 
+    private Protocol protocol;
     private List<Message> messageFeed;
 
     ClientListener(Protocol protocol) {
-        super(protocol);
+        super();
+        this.protocol = protocol;
         this.messageFeed = Collections.synchronizedList(new LinkedList<>());
     }
 
@@ -28,6 +30,7 @@ public class ClientListener extends Listener {
         return feedCopy;
     }
 
+
     @Override
     public void forceCloseSocket() {
         closeListenSocket();
@@ -35,7 +38,7 @@ public class ClientListener extends Listener {
 
     @Override
     public void run() {
-        int messageSize = super.getProtocol().getMessageSize();
+        int messageSize = protocol.getMessageSize();
 
         byte[] messageBuffer = new byte[messageSize];
         DatagramPacket packetToReceive = new DatagramPacket(new byte[messageSize], messageSize);
@@ -63,6 +66,6 @@ public class ClientListener extends Listener {
     private Message getMessageFromRemote(byte[] messageBuffer, DatagramPacket packetToReceive) throws IOException {
         super.receivePacket(packetToReceive);
         String rawMessage = new String(packetToReceive.getData(), 0, packetToReceive.getLength());
-        return new Message(super.getProtocol(), rawMessage, false);
+        return new Message(protocol, rawMessage, false);
     }
 }

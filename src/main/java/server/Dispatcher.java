@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 
 import static java.util.concurrent.Executors.newCachedThreadPool;
 
-public class Dispatcher {
+class Dispatcher {
     private static final Logger LOGGER = Logger.getLogger( Dispatcher.class.getName() );
 
     private Protocol protocol;

@@ -10,14 +10,12 @@ import java.net.SocketException;
 
 public abstract class Listener implements Runnable {
 
-    private Protocol protocol;
     private DatagramSocket listenSocket = null;
 
     private boolean shouldThreadStop;
     private final Object stopLock = new Object();
 
-    protected Listener(Protocol protocol) {
-        this.protocol = protocol;
+    protected Listener() {
         this.shouldThreadStop = false;
     }
 
@@ -34,10 +32,6 @@ public abstract class Listener implements Runnable {
         synchronized (this.stopLock) {
             this.shouldThreadStop = true;
         }
-    }
-
-    protected Protocol getProtocol() {
-        return this.protocol;
     }
 
     protected void receivePacket(DatagramPacket packet) throws IOException {

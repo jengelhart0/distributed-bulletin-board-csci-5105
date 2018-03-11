@@ -12,13 +12,25 @@ import java.util.logging.Logger;
 public class HeartbeatListener extends Listener {
     private static final Logger LOGGER = Logger.getLogger( HeartbeatListener.class.getName() );
 
-    HeartbeatListener(Protocol protocol) {
-        super(protocol);
+    private int messageSize;
+
+//    private Thread heartbeatThread;
+
+    HeartbeatListener(int messageSize) {
+        super();
+        this.messageSize = messageSize;
     }
+
+//    boolean isAlive() {
+//        return this.heartbeatThread.isAlive();
+//    }
+//
+//    void setThread(Thread thread) {
+//        this.heartbeatThread = thread;
+//    }
 
     @Override
     public void run() {
-        int messageSize = super.getProtocol().getMessageSize();
         DatagramPacket heartbeatPacket = new DatagramPacket(new byte[messageSize], messageSize);
 
         try {
