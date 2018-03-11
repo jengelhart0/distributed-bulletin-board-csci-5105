@@ -15,5 +15,5 @@ public interface CommunicationManager {
     void unsubscribe(Message message);
     void publish(Message message, MessageStore store);
     void pullSubscriptionMatchesFromStore(MessageStore store) throws IOException;
-    void informManagerThatClientLeft();
+    void clientLeft();
 }

@@ -1,7 +1,6 @@
 package server;
 
 import communicate.Communicate;
-import message.Message;
 import message.Protocol;
 
 import java.io.IOException;
@@ -12,17 +11,13 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashSet;
-import java.util.Map;
 import client.Client;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static java.util.concurrent.Executors.newCachedThreadPool;
 
 public class ReplicatedPubSubServer implements Communicate {
     private static final Logger LOGGER = Logger.getLogger( ReplicatedPubSubServer.class.getName() );
@@ -38,9 +33,8 @@ public class ReplicatedPubSubServer implements Communicate {
     private static final Object numClientsLock = new Object();
     private static final Object coordinatorLock = new Object();
 
-    private ExecutorService clientTaskExecutor;
+    private Dispatcher dispatcher;
 
-    private Map<String, CommunicationManager> clientToClientManager;
 
     private HeartbeatListener heartbeatListener;
     private int heartbeatPort;
@@ -51,8 +45,6 @@ public class ReplicatedPubSubServer implements Communicate {
 
     private String registerMessage;
     private String deregisterMessage;
-
-    private MessageStore store;
 
     private ReplicatedPubSubServer coordinator;
 
@@ -80,6 +72,8 @@ public class ReplicatedPubSubServer implements Communicate {
 
         private MessageStore store;
 
+        private boolean shouldRetrieveMatchesAutomatically;
+
 
         public Builder(Protocol protocol, InetAddress ip) throws UnknownHostException {
             this.protocol = protocol;
@@ -95,6 +89,7 @@ public class ReplicatedPubSubServer implements Communicate {
             this.registryServerPort = 5104;
             this.startingPeerListenPort = 8888;
             this.store = new PairedKeyMessageStore();
+            this.shouldRetrieveMatchesAutomatically = true;
         }
 
         public Builder name(String name) {
@@ -142,22 +137,30 @@ public class ReplicatedPubSubServer implements Communicate {
             return this;
         }
 
+        public Builder shouldRetrieveMatchesAutomatically(boolean shouldRetrieveAutomatically) {
+            this.shouldRetrieveMatchesAutomatically = shouldRetrieveAutomatically;
+            return this;
+        }
+
         public ReplicatedPubSubServer build() {
             return new ReplicatedPubSubServer(this);
         }
     }
 
     private ReplicatedPubSubServer(Builder builder) {
+
         this.name = builder.name;
         this.protocol = builder.protocol;
         this.ip = builder.ip;
         this.maxClients = builder.maxClients;
+
+        this.dispatcher = new Dispatcher(this.protocol, builder.store, builder.shouldRetrieveMatchesAutomatically);
+
         this.heartbeatPort = builder.heartbeatPort;
         this.rmiPort = builder.rmiPort;
         this.registryServerAddress = builder.registryServerAddress;
         this.registryServerPort = builder.registryServerPort;
         this.serverListSize = builder.serverListSize;
-        this.store = builder.store;
         this.nextPeerListenPort = builder.startingPeerListenPort;
 
         this.clientsForReplicatedPeers = new ConcurrentHashMap<>();
@@ -167,13 +170,12 @@ public class ReplicatedPubSubServer implements Communicate {
         try {
             setCommunicationVariables(name, maxClients, protocol, ip, rmiPort, heartbeatPort,
                     registryServerAddress, registryServerPort, serverListSize);
-            createClientTaskExecutor();
             startHeartbeat();
-            startSubscriptionPullScheduler();
             makeThisARemoteCommunicationServer();
             registerWithRegistryServer();
-            discoverReplicatedPeers();
-        } catch (IOException | NotBoundException | RuntimeException e) {
+            //discoverReplicatedPeers();
+            dispatcher.initialize();
+        } catch (IOException | RuntimeException e) {
             LOGGER.log(Level.SEVERE, "Failed on server initialization: " + e.toString());
             e.printStackTrace();
             cleanup();
@@ -186,7 +188,7 @@ public class ReplicatedPubSubServer implements Communicate {
             heartbeatListener.tellThreadToStop();
             heartbeatListener.forceCloseSocket();
             deregisterFromRegistryServer();
-            clientTaskExecutor.shutdown();
+            dispatcher.cleanup();
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "While cleaning up server: " + e.toString());
             e.printStackTrace();
@@ -203,8 +205,6 @@ public class ReplicatedPubSubServer implements Communicate {
         this.maxClients = maxClients;
         this.numClients = 0;
 
-        this.clientToClientManager = new ConcurrentHashMap<>();
-
         this.heartbeatPort = heartbeatPort;
 
         this.ip = ip;
@@ -217,10 +217,6 @@ public class ReplicatedPubSubServer implements Communicate {
         setRegistryServerMessages();
     }
 
-    private void createClientTaskExecutor() {
-        this.clientTaskExecutor = newCachedThreadPool();
-    }
-
     private void startHeartbeat() throws IOException {
         this.heartbeatListener = new HeartbeatListener(this.protocol);
         this.heartbeatListener.listenAt(this.heartbeatPort, this.ip);
@@ -231,25 +227,6 @@ public class ReplicatedPubSubServer implements Communicate {
             throw new RuntimeException();
         }
     }
-
-    private void startSubscriptionPullScheduler() {
-        Runnable subscriptionPullScheduler = () -> {
-            try {
-                while (true) {
-                    Thread.sleep(500);
-                    for (CommunicationManager manager: clientToClientManager.values()) {
-                        queueTaskFor(manager, CommunicationManager.Call.PULL_MATCHES, null);
-                    }
-                }
-            } catch (InterruptedException e) {
-                LOGGER.log(Level.SEVERE, e.toString());
-                e.printStackTrace();
-                throw new RuntimeException("Failure in subscription pull scheduler thread.");
-            }
-        };
-        new Thread(subscriptionPullScheduler).start();
-    }
-
 
     private void makeThisARemoteCommunicationServer() {
         LOGGER.log(Level.INFO, "IP " + this.ip.getHostAddress());
@@ -370,7 +347,6 @@ public class ReplicatedPubSubServer implements Communicate {
         synchronized (coordinatorLock) {
             this.coordinator = currentCoordinator;
         }
-
     }
 
     @Override
@@ -381,55 +357,35 @@ public class ReplicatedPubSubServer implements Communicate {
             }
             numClients++;
         }
-        CommunicationManager newClientManager = new ClientManager(IP, Port, this.protocol);
-        clientToClientManager.put(getIpPortString(IP, Port), newClientManager);
+        dispatcher.addNewClient(IP, Port);
         return true;
     }
 
     @Override
     public boolean Leave(String IP, int Port) throws RemoteException {
-        CommunicationManager removed = clientToClientManager.remove(getIpPortString(IP, Port));
+        boolean clientWasActuallyBeingManaged = dispatcher.informManagerThatClientLeft(IP, Port);
         // Only decrement num clients if a non-null manager was associated with client
-        if(removed != null) {
+        if(clientWasActuallyBeingManaged) {
             synchronized (numClientsLock) {
                 numClients--;
             }
-            removed.informManagerThatClientLeft();
         }
         return true;
     }
 
     @Override
     public boolean Subscribe(String IP, int Port, String Message) throws RemoteException {
-        return createMessageTask(IP, Port, Message, CommunicationManager.Call.SUBSCRIBE, true);
+        return dispatcher.subscribe(IP, Port, Message);
     }
 
     @Override
     public boolean Unsubscribe(String IP, int Port, String Message) throws RemoteException {
-        return createMessageTask(IP, Port, Message, CommunicationManager.Call.UNSUBSCRIBE, true);
+        return dispatcher.unsubscribe(IP, Port, Message);
     }
 
     @Override
     public boolean Publish(String Message, String IP, int Port) throws RemoteException {
-        return createMessageTask(IP, Port, Message, CommunicationManager.Call.PUBLISH, false);
-    }
-
-    @Override
-    public boolean JoinServer(String IP, int Port) throws RemoteException {
-        // TODO: optional
-        throw new RemoteException("JoinServer not implemented!");
-    }
-
-    @Override
-    public boolean LeaveServer(String IP, int Port) throws RemoteException {
-        // TODO: optional
-        throw new RemoteException("LeaveServer not implemented!");
-    }
-
-    @Override
-    public boolean PublishServer(String Message, String IP, int Port) throws RemoteException {
-        // TODO: optional
-        throw new RemoteException("PublishServer not implemented!;");
+        return dispatcher.publish(Message, IP, Port);
     }
 
     @Override
@@ -444,45 +400,7 @@ public class ReplicatedPubSubServer implements Communicate {
         }
     }
 
-    private boolean createMessageTask(String ip, int port, String rawMessage,
-                                      CommunicationManager.Call call, boolean isSubscription) {
-
-        Message newMessage = createNewMessage(rawMessage, isSubscription);
-        if(newMessage == null) {
-            return false;
-        }
-        CommunicationManager manager = getManagerFor(ip, port);
-        if(manager == null) {
-            LOGGER.log(Level.WARNING, "Client had no manager. May not have joined.");
-            return false;
-        }
-        queueTaskFor(manager, call, newMessage);
-        return true;
-    }
-
-    private Message createNewMessage(String rawMessage, boolean isSubscription) {
-        try {
-            return new Message(this.protocol, rawMessage, isSubscription);
-        } catch (IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "Invalid message received from");
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    private CommunicationManager getManagerFor(String ip, int port) {
-        return clientToClientManager.get(getIpPortString(ip, port));
-    }
-
-    private void queueTaskFor(CommunicationManager manager, CommunicationManager.Call call, Message message) {
-        this.clientTaskExecutor.execute(manager.task(message, store, call));
-    }
-
-    private String getIpPortString(String ip, int port) {
-        return ip + this.protocol.getDelimiter() + Integer.toString(port);
-    }
-
     public String getThisServersIpPortString() {
-        return getIpPortString(ip.getHostAddress(), rmiPort);
+        return ServerUtils.getIpPortString(ip.getHostAddress(), rmiPort, protocol);
     }
 }

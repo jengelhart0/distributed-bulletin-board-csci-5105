@@ -4,6 +4,7 @@ import server.ReplicatedPubSubServer;
 import java.io.IOException;
 
 import java.net.InetAddress;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,10 +27,10 @@ public class ServerMain {
         return true;
     }
 
-    private static String[] getListTest(String remoteServerIp) throws IOException, InterruptedException {
+    private static Set<String> getListTest(String remoteServerIp) throws IOException, InterruptedException {
         ReplicatedPubSubServer server = startServer(remoteServerIp);
         Thread.sleep(3000);
-        String[] serverList = server.getListOfServers();
+        Set<String> serverList = server.getListOfServers();
         if (serverList != null) {
             System.out.print("Server List: ");
             for (String serverString: serverList) {

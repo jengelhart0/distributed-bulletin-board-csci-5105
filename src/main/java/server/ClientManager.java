@@ -143,7 +143,7 @@ public class ClientManager implements CommunicationManager {
         }
     }
 
-    public void informManagerThatClientLeft() {
+    public void clientLeft() {
         this.clientLeft = true;
     }
 }

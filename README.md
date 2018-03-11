@@ -15,7 +15,7 @@ a ping() loop to indicate its continued operation to the remote server with whic
 
 ## Server Structure
 
-The remote messaging server has more moving parts. Upon initialization, the server creates a Dispatcher singleton, which serves as the gateway/dispatcher for the system.
+The remote messaging server has more moving parts. Upon initialization, the server creates a Dispatcher singleton, which serves as the gateway/replicatedPubSubServer for the system.
 
 ### Dispatcher
 
