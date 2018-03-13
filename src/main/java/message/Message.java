@@ -6,33 +6,44 @@ import java.util.Set;
 public class Message {
 
     private Protocol protocol;
-    private String asRawMessage;
+    private String asString;
     private Query query;
     private boolean isSubscription;
 
     public Message(Protocol protocol, String rawMessage, boolean isSubscription) {
         this.protocol = protocol;
 
-        int messageSize = protocol.getMessageSize();
-        if(rawMessage.length() <= messageSize) {
-            this.asRawMessage = protocol.padMessage(rawMessage);
-        }
+        setProcessedMessage(rawMessage, protocol);
 
         if (!validate(isSubscription)) {
-            throw new IllegalArgumentException("Was an invalid subscription: " + this.asRawMessage);
+            throw new IllegalArgumentException("Was an invalid subscription: " + asString);
         }
-
-        this.asRawMessage = rawMessage;
         this.isSubscription = isSubscription;
+
         setQuery();
     }
 
+    private void setProcessedMessage(String rawMessage, Protocol protocol) {
+        String processedMessage = rawMessage;
+        String[] fieldsInMessage = protocol.parse(rawMessage);
+        if(fieldsInMessage.length == protocol.getNumExternalFields()) {
+            processedMessage = protocol.getEmptyInternalFields() + rawMessage;
+        }
+
+        int messageSize = protocol.getMessageSize();
+        if(processedMessage.length() <= messageSize) {
+            processedMessage = protocol.padMessage(processedMessage);
+        }
+
+        this.asString = processedMessage;
+    }
+
     private boolean validate(boolean isSubscription) {
-        return protocol.validate(asRawMessage, isSubscription);
+        return protocol.validate(asString, isSubscription);
     }
 
     public String asRawMessage() {
-        return asRawMessage;
+        return asString;
     }
 
     private void setQuery() {

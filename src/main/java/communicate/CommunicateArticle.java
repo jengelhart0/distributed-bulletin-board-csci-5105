@@ -2,10 +2,7 @@ package communicate;
 
 import message.Protocol;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public interface CommunicateArticle extends Communicate {
     int MAXCLIENTS = 2000;
@@ -18,12 +15,12 @@ public interface CommunicateArticle extends Communicate {
     int REMOTE_OBJECT_PORT = 1099;
 
     Protocol ARTICLE_PROTOCOL = new Protocol(
-            new String[]{"type", "orginator", "org"},
-            new String[][]{
+            Arrays.asList("type", "orginator", "org"),
+            Arrays.asList(
                     new String[]{"", "Sports", "Lifestyle", "Entertainment", "Business", "Technology", "Science", "Politics", "Health"},
                     new String[]{""},
-                    new String[]{""},
-            },
+                    new String[]{""}),
+
             ";",
             "",
             120);

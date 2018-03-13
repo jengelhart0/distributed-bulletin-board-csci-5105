@@ -4,7 +4,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Query {
-    private String[] fields;
+    private List<String> fields;
     private String[] values;
     private boolean isSubscription;
     private String wildcard;
@@ -12,7 +12,7 @@ public class Query {
     private Date lastAccess;
     private final Object lastAccessLock = new Object();
 
-    Query(String[] fields, String[] values, String wildcard, boolean isSubscription) {
+    Query(List<String> fields, String[] values, String wildcard, boolean isSubscription) {
         this.fields = fields;
         this.values = values;
         this.query = new ConcurrentHashMap<>();
@@ -23,11 +23,11 @@ public class Query {
 
     Query generate() {
         int i;
-        int numFields = fields.length;
+        int numFields = fields.size();
         String field, value;
 
         for (i = 0; i < numFields; i++) {
-            field = fields[i];
+            field = fields.get(i);
             value = values[i];
             query.put(field + "_" + value, "");
 

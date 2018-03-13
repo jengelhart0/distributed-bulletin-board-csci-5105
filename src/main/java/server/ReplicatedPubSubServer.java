@@ -243,17 +243,21 @@ public class ReplicatedPubSubServer implements Communicate {
 
     @Override
     public boolean Subscribe(String IP, int Port, String Message) throws RemoteException {
-        return dispatcher.subscribe(IP, Port, Message);
+
+        // TODO: need to add messageId/clientId
+        return protocol.areInternalFieldsBlank(Message) && dispatcher.subscribe(IP, Port, Message);
     }
 
     @Override
     public boolean Unsubscribe(String IP, int Port, String Message) throws RemoteException {
-        return dispatcher.unsubscribe(IP, Port, Message);
+        // TODO: need to add messageId/clientId
+        return protocol.areInternalFieldsBlank(Message) && dispatcher.unsubscribe(IP, Port, Message);
     }
 
     @Override
     public boolean Publish(String Message, String IP, int Port) throws RemoteException {
-        return dispatcher.publish(Message, IP, Port);
+        // TODO: need to add messageId/clientId
+        return protocol.areInternalFieldsBlank(Message) && dispatcher.publish(Message, IP, Port);
     }
 
     @Override

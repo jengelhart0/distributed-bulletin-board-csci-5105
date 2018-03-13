@@ -1,24 +1,58 @@
 package message;
 
-import java.util.Set;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.regex.Pattern;
 
 public class Protocol {
     // It is understood that all messages have data/payload fields,
     // so we only indicate others (i.e., the query fields).
-    private String[] queryFields;
-    private String[][] allowedFieldValues;
+    private List<String> queryFields;
+    private List<String[]> allowedFieldValues;
     private String delimiter;
     private String wildcard;
     private int messageSize;
+    private String emptyInternalFields;
+    private int numExternalFields;
 
-    public Protocol(String[] fields, String[][] allowedFieldValues,
+    public Protocol(List<String> fields, List<String[]> allowedFieldValues,
                     String delimiter, String wildcard, int messageSize) {
-        this.queryFields = fields;
-        this.allowedFieldValues = allowedFieldValues;
+        for(String field: fields) {
+            if (field.equals("messageId") || field.equals("clientId")) {
+                throw new IllegalArgumentException("Fields 'messageId' and 'clientId' internally reserved.");
+            }
+        }
+
         this.delimiter = delimiter;
         this.messageSize = messageSize;
         this.wildcard = wildcard;
+
+        combineInternalAndExternalFields(fields, allowedFieldValues);
+
+    }
+
+    private void combineInternalAndExternalFields(List<String> externalFields,
+                                                  List<String[]> allowedExternalFieldValues) {
+        this.numExternalFields = externalFields.size();
+        this.emptyInternalFields = wildcard + delimiter + wildcard + delimiter;
+
+        this.queryFields = new LinkedList<>();
+        this.queryFields.add("messageId");
+        this.queryFields.add("clientId");
+        this.queryFields.addAll(externalFields);
+
+        this.allowedFieldValues = new LinkedList<>();
+        this.allowedFieldValues.add(new String[]{""});
+        this.allowedFieldValues.add(new String[]{""});
+        this.allowedFieldValues.addAll(allowedExternalFieldValues);
+    }
+
+    int getNumExternalFields() {
+        return numExternalFields;
+    }
+
+    String getEmptyInternalFields() {
+        return emptyInternalFields;
     }
 
     public String[] parse(String message) {
@@ -37,7 +71,7 @@ public class Protocol {
         return wildcard;
     }
 
-    public String[] getQueryFields() {
+    public List<String> getQueryFields() {
         return queryFields;
     }
 
@@ -80,7 +114,7 @@ public class Protocol {
 
         String[] parsedValues = parse(message);
         int valuesLength = parsedValues.length;
-        if(valuesLength != queryFields.length + 1) {
+        if(valuesLength != queryFields.size() + 1) {
             return false;
         }
 
@@ -101,8 +135,8 @@ public class Protocol {
 
     private boolean adheresToValueRestrictions(String message) {
         String[] parsedValues = parse(message);
-        for(int i = 0; i < allowedFieldValues.length; i++) {
-            String[] allowedValues = allowedFieldValues[i];
+        for(int i = 0; i < allowedFieldValues.size(); i++) {
+            String[] allowedValues = allowedFieldValues.get(i);
             String parsedValue = parsedValues[i];
             if(!(allowedValues.length == 1 && allowedValues[0].equals(wildcard))) {
                 boolean foundValidValue = false;
@@ -127,5 +161,12 @@ public class Protocol {
             return parse(message)[1];
         }
         return "";
+    }
+
+    public boolean areInternalFieldsBlank(String message) {
+        int internalFieldsLength = emptyInternalFields.length();
+        return message.length() >= internalFieldsLength
+                && message.startsWith(emptyInternalFields)
+                && parse(message.substring(internalFieldsLength)).length == numExternalFields;
     }
 }
