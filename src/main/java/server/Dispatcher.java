@@ -77,6 +77,11 @@ class Dispatcher {
         return false;
      }
 
+    public boolean returnClientIdToClient(String IP, int Port, String clientId) {
+        String clientIdMessage = "clientId" + protocol.getDelimiter() + clientId;
+        return createMessageTask(IP, Port, clientIdMessage, CommunicationManager.Call.RETURN_CLIENT_ID_TO_CLIENT, false);
+    }
+
     public boolean subscribe(String IP, int Port, String Message) {
         return createMessageTask(IP, Port, Message, CommunicationManager.Call.SUBSCRIBE, true);
     }

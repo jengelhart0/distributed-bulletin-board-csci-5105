@@ -42,6 +42,9 @@ public class Protocol {
     }
 
     public boolean validate(String message, boolean isSubscription) {
+        if(messageIsClientIdMessage(message)) {
+            return true;
+        }
         if (!isBasicallyValid(message)) {
             return false;
         }
@@ -61,6 +64,13 @@ public class Protocol {
             padder.append(" ");
         }
         return padder.toString();
+    }
+
+    private boolean messageIsClientIdMessage(String message) {
+        String[] parsed = parse(message);
+        return parsed.length > 1
+                && parsed[0].equals("clientId")
+                && !parsed[1].isEmpty();
     }
 
     private boolean isBasicallyValid(String message) throws IllegalArgumentException {
@@ -109,5 +119,13 @@ public class Protocol {
             }
         }
         return true;
+    }
+
+    public String extractIdIfThisIsIdMessage(String message) {
+        if(messageIsClientIdMessage(message)) {
+            // client id message format: "clientId;<ID>" if ';' is delimiter
+            return parse(message)[1];
+        }
+        return "";
     }
 }

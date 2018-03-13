@@ -213,7 +213,7 @@ public class ReplicatedPubSubServer implements Communicate {
     }
 
     @Override
-    public boolean Join(String IP, int Port) throws RemoteException {
+    public boolean Join(String IP, int Port, String existingClientId, String previousServer) throws RemoteException {
         synchronized (numClientsLock) {
             if(numClients >= maxClients) {
                 return false;
@@ -221,6 +221,11 @@ public class ReplicatedPubSubServer implements Communicate {
             numClients++;
         }
         dispatcher.addNewClient(IP, Port);
+        if(existingClientId == null) {
+            String newClientId = peerListManager.getCoordinator().requestNewClientId();
+            dispatcher.returnClientIdToClient(IP, Port, newClientId);
+        }
+        consistency.enforceOnJoin(existingClientId, previousServer);
         return true;
     }
 

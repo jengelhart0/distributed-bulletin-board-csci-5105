@@ -8,11 +8,13 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
 import java.util.List;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import communicate.Communicate;
-import communicate.CommunicateArticle;
 import communicate.Communicate.RemoteMessageCall;
 import message.Message;
 import message.Protocol;
@@ -25,6 +27,7 @@ public class Client implements Runnable {
     private String communicateName;
     private String remoteHost;
     private int remoteServerPort;
+    private String previousServer;
     private Protocol protocol;
 
     private boolean terminate;
@@ -35,18 +38,24 @@ public class Client implements Runnable {
 
     private InetAddress localAddress;
 
+    private String id;
+    private final Lock idReceivedByListenerLock = new ReentrantLock();
+    private final Condition idHasBeenSet = idReceivedByListenerLock.newCondition();
+
     public Client(Protocol protocol, int listenPort) throws IOException, NotBoundException {
         this.protocol = protocol;
         this.localAddress = InetAddress.getLocalHost();
         this.listenPort = listenPort;
+        this.id = null;
         this.terminate = false;
+        this.previousServer = null;
 
         startMessageListener();
         new Thread(this).start();
     }
 
     private void startMessageListener() throws SocketException {
-        this.listener = new ClientListener(this.protocol);
+        this.listener = new ClientListener(this.protocol, idReceivedByListenerLock, idHasBeenSet);
         this.listener.listenAt(this.listenPort, this.localAddress);
         Thread listenerThread = new Thread(this.listener);
         listenerThread.start();
@@ -64,7 +73,7 @@ public class Client implements Runnable {
 
         establishRemoteObject();
         if (!join()) {
-            LOGGER.log(Level.WARNING, "Server refused join (likely because it already has MAXCLIENTS). Cleaning up...");
+            LOGGER.log(Level.WARNING, "Server refused returnClientIdToClient (likely because it already has MAXCLIENTS). Cleaning up...");
             cleanup();
         }
     }
@@ -133,7 +142,12 @@ public class Client implements Runnable {
         if (message == null) {
             switch (call) {
                 case JOIN:
-                    return this.communicate.Join(address, this.listenPort);
+                    boolean isCallSuccessful = this.communicate.Join(address, this.listenPort, this.id, this.previousServer);
+                    if (isCallSuccessful) {
+                        ensureThisHasId();
+                    }
+                    this.previousServer = remoteHost + protocol.getDelimiter() + remoteServerPort;
+                    return isCallSuccessful;
                 case LEAVE:
                     this.communicate.Leave(address, this.listenPort);
                     this.communicate = null;
@@ -155,6 +169,22 @@ public class Client implements Runnable {
                         address, this.listenPort, message.asRawMessage());
             default:
                 throw new IllegalArgumentException("Invalid RemoteMessageCall passed");
+        }
+    }
+
+    private void ensureThisHasId() {
+        if (id == null) {
+            idReceivedByListenerLock.lock();
+            try {
+                idHasBeenSet.await();
+                id = listener.getReceivedClientId();
+            } catch (InterruptedException e) {
+                LOGGER.log(Level.WARNING,
+                        "Client interrupted while waiting for its ID to be set! " +
+                                "May result in unusual behavior (e.g., trying to publish without a client id).");
+            } finally {
+                idReceivedByListenerLock.unlock();
+            }
         }
     }
 

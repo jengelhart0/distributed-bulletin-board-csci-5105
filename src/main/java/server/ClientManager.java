@@ -3,8 +3,6 @@ package server;
 import message.Message;
 import message.Protocol;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -19,6 +17,7 @@ public class ClientManager implements CommunicationManager {
 
     private String clientIp;
     private int clientPort;
+    private String clientId;
 
     private boolean clientLeft;
 
@@ -33,6 +32,7 @@ public class ClientManager implements CommunicationManager {
     ClientManager(String clientIp, int clientPort, Protocol protocol) {
         this.clientIp = clientIp;
         this.clientPort = clientPort;
+        this.clientId = null;
 
         this.clientLeft = false;
 
@@ -44,6 +44,8 @@ public class ClientManager implements CommunicationManager {
 
     public Runnable task(Message message, MessageStore store, Call call) {
         switch(call) {
+            case RETURN_CLIENT_ID_TO_CLIENT:
+                return () -> deliverClientId(message);
             case SUBSCRIBE:
                 return () -> subscribe(message);
             case PUBLISH:
@@ -56,6 +58,20 @@ public class ClientManager implements CommunicationManager {
                 throw new IllegalArgumentException("Task call made to ClientManager not recognized.");
         }
     }
+    @Override
+    public void deliverClientId(Message clientIdMessage) {
+        deliverPublication(clientIdMessage.asRawMessage(), protocol.getMessageSize());
+    }
+
+//    private String extractClientId(Message clientIdMessage) {
+//        String[] pieces = clientIdMessage
+//                .asRawMessage()
+//                .split(protocol.getDelimiter());
+//        if (pieces.length < 2) {
+//            throw new IllegalArgumentException("Invalid clientIdMessage in extractClientId()");
+//        }
+//        return pieces[1];
+//    }
 
     @Override
     public void subscribe(Message message) {
@@ -99,15 +115,7 @@ public class ClientManager implements CommunicationManager {
             Set<String> toDeliver = getSubscriptionMatches(subscriptionsToMatch, store);
 
             int messageSize = this.protocol.getMessageSize();
-            try {
-                DatagramPacket deliveryPacket = new DatagramPacket(
-                        new byte[messageSize], messageSize, InetAddress.getByName(clientIp), clientPort);
-
-                deliverPublications(toDeliver, deliveryPacket, messageSize);
-            } catch (IOException e) {
-                LOGGER.log(Level.SEVERE, "Failed to send matched publications in ClientManager: " + e.toString());
-                e.printStackTrace();
-            }
+            deliverPublications(toDeliver, messageSize);
         }
     }
 
@@ -120,13 +128,10 @@ public class ClientManager implements CommunicationManager {
     }
 
     private void deliverPublications(Set<String> publicationsToDeliver,
-                                     DatagramPacket deliveryPacket, int messageSize) throws IOException {
+                                     int messageSize) {
 
-        try (DatagramSocket deliverySocket = new DatagramSocket();
-             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-             DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream))
-        {
-            byte[] messageBuffer = new byte[messageSize];
+        try (DatagramSocket deliverySocket = new DatagramSocket()) {
+            byte[] messageBuffer;
             String paddedPublication;
             for (String publication: publicationsToDeliver) {
                 if(publication.length() > messageSize) {
@@ -140,7 +145,16 @@ public class ClientManager implements CommunicationManager {
 
                 deliverySocket.send(packetToSend);
             }
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Failed to send matched publications in ClientManager: " + e.toString());
+            e.printStackTrace();
         }
+    }
+
+    private void deliverPublication(String publicationToDeliver, int messageSize) {
+        Set<String> singlePublicationSet = new HashSet<>();
+        singlePublicationSet.add(publicationToDeliver);
+        deliverPublications(singlePublicationSet, messageSize);
     }
 
     public void clientLeft() {
