@@ -17,6 +17,8 @@ public interface Communicate extends Remote {
     boolean Subscribe(String IP, int Port, String Message) throws RemoteException;
     boolean Unsubscribe(String IP, int Port, String Message) throws RemoteException;
     boolean Publish(String Message, String IP, int Port) throws RemoteException;
-    ReplicatedPubSubServer getCoordinator() throws RemoteException;
     boolean Ping() throws RemoteException;
+    ReplicatedPubSubServer getCoordinator() throws RemoteException;
+    String requestNewClientId() throws RemoteException;
+    String requestNewMessageId() throws RemoteException;
 }

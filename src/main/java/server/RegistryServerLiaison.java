@@ -107,8 +107,8 @@ class RegistryServerLiaison {
                 .split(registryMessageDelimiter);
 
         Set<String> results = new HashSet<>();
-        for (int i = 0; i < rawServerList.length - 1; i += 2) {
-            results.add(rawServerList[i] + ";" + rawServerList[i + 1]);
+        for (int i = 0; i < rawServerList.length - 1; i += 3) {
+            results.add(rawServerList[i] + ";" + rawServerList[i + 1] + ";" + rawServerList[i + 2]);
         }
         return results;
     }

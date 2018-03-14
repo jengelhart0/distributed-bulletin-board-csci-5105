@@ -30,6 +30,27 @@ public class ReplicatedPubSubServer implements Communicate {
     private Dispatcher dispatcher;
     private PeerListManager peerListManager;
 
+    private ReplicatedPubSubServer(Builder builder) {
+
+        this.name = builder.name;
+        this.protocol = builder.protocol;
+        this.ip = builder.ip;
+        this.port = builder.serverPort;
+        this.maxClients = builder.maxClients;
+
+        this.dispatcher = new Dispatcher(this.protocol, builder.store, builder.shouldRetrieveMatchesAutomatically);
+        RegistryServerLiaison registryServerLiaison = new RegistryServerLiaison(
+                builder.heartbeatPort,
+                builder.registryServerAddress,
+                builder.registryServerPort,
+                builder.registryMessageDelimiter,
+                builder.registryMessageSize,
+                builder.serverListSize);
+
+        this.peerListManager = new PeerListManager(name, ip, port, protocol,
+                builder.startingPeerListenPort, registryServerLiaison);
+    }
+
     public static class Builder {
         private Protocol protocol;
         private InetAddress ip;
@@ -62,7 +83,7 @@ public class ReplicatedPubSubServer implements Communicate {
             this.maxClients = 1000;
             this.serverPort = 1099;
             this.registryServerAddress = InetAddress.getByName("localhost");
-            this.registryServerPort = 5104;
+            this.registryServerPort = 5105;
             this.registryMessageDelimiter = ";";
             this.registryMessageSize = 120;
             this.serverListSize = 1024;
@@ -135,27 +156,6 @@ public class ReplicatedPubSubServer implements Communicate {
         public ReplicatedPubSubServer build() {
             return new ReplicatedPubSubServer(this);
         }
-    }
-
-    private ReplicatedPubSubServer(Builder builder) {
-
-        this.name = builder.name;
-        this.protocol = builder.protocol;
-        this.ip = builder.ip;
-        this.port = builder.serverPort;
-        this.maxClients = builder.maxClients;
-
-        this.dispatcher = new Dispatcher(this.protocol, builder.store, builder.shouldRetrieveMatchesAutomatically);
-        RegistryServerLiaison registryServerLiaison = new RegistryServerLiaison(
-                builder.heartbeatPort,
-                builder.registryServerAddress,
-                builder.registryServerPort,
-                builder.registryMessageDelimiter,
-                builder.registryMessageSize,
-                builder.serverListSize);
-
-        this.peerListManager = new PeerListManager(name, ip, port, protocol,
-                builder.startingPeerListenPort, registryServerLiaison);
     }
 
     public void initialize() {
@@ -267,6 +267,16 @@ public class ReplicatedPubSubServer implements Communicate {
     @Override
     public ReplicatedPubSubServer getCoordinator() {
         return peerListManager.getCoordinator();
+    }
+
+    @Override
+    public String requestNewMessageId() {
+        return peerListManager.requestNewMessageId();
+    }
+
+    @Override
+    public String requestNewClientId() {
+        return peerListManager.requestNewClientId();
     }
 
     public Set<String> getListOfServers() throws IOException {
