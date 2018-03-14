@@ -28,7 +28,6 @@ public class ReplicatedPubSubServer implements Communicate {
     private final Object numClientsLock = new Object();
 
     private Dispatcher dispatcher;
-    private RegistryServerLiaison registryServerLiaison;
     private PeerListManager peerListManager;
 
     public static class Builder {
@@ -147,7 +146,7 @@ public class ReplicatedPubSubServer implements Communicate {
         this.maxClients = builder.maxClients;
 
         this.dispatcher = new Dispatcher(this.protocol, builder.store, builder.shouldRetrieveMatchesAutomatically);
-        this.registryServerLiaison = new RegistryServerLiaison(
+        RegistryServerLiaison registryServerLiaison = new RegistryServerLiaison(
                 builder.heartbeatPort,
                 builder.registryServerAddress,
                 builder.registryServerPort,
@@ -156,7 +155,7 @@ public class ReplicatedPubSubServer implements Communicate {
                 builder.serverListSize);
 
         this.peerListManager = new PeerListManager(name, ip, port, protocol,
-                registryServerLiaison, builder.startingPeerListenPort);
+                builder.startingPeerListenPort, registryServerLiaison);
     }
 
     public void initialize() {
@@ -164,7 +163,7 @@ public class ReplicatedPubSubServer implements Communicate {
             setCommunicationVariables(name, maxClients, protocol, ip, port);
             makeThisARemoteCommunicationServer();
             dispatcher.initialize();
-            peerListManager.initialize();
+            peerListManager.initialize(this);
         } catch (IOException | RuntimeException e) {
             LOGGER.log(Level.SEVERE, "Failed on server initialization: " + e.toString());
             e.printStackTrace();
@@ -175,7 +174,7 @@ public class ReplicatedPubSubServer implements Communicate {
 
     public void cleanup() {
         try {
-            registryServerLiaison.cleanup();
+            peerListManager.cleanup();
             dispatcher.cleanup();
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "While cleaning up server: " + e.toString());
@@ -225,7 +224,7 @@ public class ReplicatedPubSubServer implements Communicate {
             String newClientId = peerListManager.getCoordinator().requestNewClientId();
             dispatcher.returnClientIdToClient(IP, Port, newClientId);
         }
-        consistency.enforceOnJoin(existingClientId, previousServer);
+//        consistency.enforceOnJoin(existingClientId, previousServer);
         return true;
     }
 
@@ -271,7 +270,7 @@ public class ReplicatedPubSubServer implements Communicate {
     }
 
     public Set<String> getListOfServers() throws IOException {
-        return this.registryServerLiaison.getListOfServers();
+        return peerListManager.getListOfServers();
     }
 
     public String getThisServersIpPortString() {

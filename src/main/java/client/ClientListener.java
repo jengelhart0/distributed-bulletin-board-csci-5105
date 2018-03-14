@@ -1,6 +1,6 @@
 package client;
 
-import listener.Listener;
+import runnableComponents.Listener;
 import message.Message;
 import message.Protocol;
 
@@ -55,7 +55,7 @@ public class ClientListener extends Listener {
 
         DatagramPacket packetToReceive = new DatagramPacket(new byte[messageSize], messageSize);
         try {
-            while(true) {
+            while(shouldThreadContinue()) {
                 Message newMessage = getMessageFromRemote(packetToReceive);
 
                 String possibleClientId = protocol.extractIdIfThisIsIdMessage(newMessage.asRawMessage());
@@ -67,7 +67,7 @@ public class ClientListener extends Listener {
                 }
             }
         } catch (SocketException e) {
-            if (shouldThreadStop()) {
+            if (!shouldThreadContinue()) {
                 LOGGER.log(Level.FINE, "ClientListener gracefully exiting after being asked to stop.");
             } else {
                 LOGGER.log(Level.WARNING, "ClientListener failed to receive incoming message: " + e.toString());

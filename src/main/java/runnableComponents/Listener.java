@@ -1,6 +1,4 @@
-package listener;
-
-import message.Protocol;
+package runnableComponents;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -8,30 +6,18 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 
-public abstract class Listener implements Runnable {
+public abstract class Listener extends Scheduler {
 
     private DatagramSocket listenSocket = null;
 
-    private boolean shouldThreadStop;
-    private final Object stopLock = new Object();
-
     protected Listener() {
-        this.shouldThreadStop = false;
+        super();
     }
-
-    @Override
-    public abstract void run();
 
     public abstract void forceCloseSocket();
 
     public void listenAt(int listenPort, InetAddress localAddress) throws SocketException {
         this.listenSocket = new DatagramSocket(listenPort);
-    }
-
-    public void tellThreadToStop() {
-        synchronized (this.stopLock) {
-            this.shouldThreadStop = true;
-        }
     }
 
     protected void receivePacket(DatagramPacket packet) throws IOException {
@@ -46,9 +32,4 @@ public abstract class Listener implements Runnable {
         this.listenSocket.close();
     }
 
-    protected boolean shouldThreadStop() {
-        synchronized (this.stopLock) {
-            return this.shouldThreadStop;
-        }
-    }
 }

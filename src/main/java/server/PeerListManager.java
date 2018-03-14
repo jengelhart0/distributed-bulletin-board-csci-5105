@@ -2,6 +2,7 @@ package server;
 
 import client.Client;
 import message.Protocol;
+import runnableComponents.Scheduler;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -22,6 +23,7 @@ class PeerListManager {
     private Protocol protocol;
     private RegistryServerLiaison registryServerLiaison;
 
+    private Scheduler peerListMonitor;
     private ReplicatedPubSubServer coordinator = null;
     private final Object coordinatorLock = new Object();
 
@@ -32,48 +34,57 @@ class PeerListManager {
     private int nextPeerListenPort;
 
     PeerListManager(String serverInterfaceName, InetAddress serverIp, int serverPort, Protocol protocol,
-                    RegistryServerLiaison registryServerLiaison, int startingPeerListenPort) {
+                    int startingPeerListenPort, RegistryServerLiaison registryServerLiaison) {
         this.serverInterfaceName = serverInterfaceName;
         this.serverIp = serverIp;
         this.serverPort = serverPort;
         this.protocol = protocol;
-        this.registryServerLiaison = registryServerLiaison;
         this.nextPeerListenPort = startingPeerListenPort;
+        this.registryServerLiaison = registryServerLiaison;
         this.clientsForReplicatedPeers = new ConcurrentHashMap<>();
     }
 
-    void initialize() throws IOException {
-        registryServerLiaison.initialize(this.serverInterfaceName, this.serverIp, this.serverPort);
+    void initialize(ReplicatedPubSubServer thisServer) throws IOException {
+        this.registryServerLiaison.initialize(this.serverInterfaceName, this.serverIp, this.serverPort);
+        // We only know about current server at this point, so it must be our coordinator
+        this.coordinator = thisServer;
         startPeerListMonitor();
     }
 
+    void cleanup() throws IOException {
+        registryServerLiaison.cleanup();
+        peerListMonitor.tellThreadToStop();
+    }
+
     private void startPeerListMonitor() {
-        Runnable peerListMonitor = () -> {
-            try {
-                while (true) {
-                    discoverReplicatedPeers();
-                    Thread.sleep(2500);
+        this.peerListMonitor = new Scheduler() {
+            @Override
+            public void run() {
+                try {
+                    while (shouldThreadContinue()) {
+                        discoverReplicatedPeers();
+                        Thread.sleep(2500);
+                    }
+                } catch (IOException e) {
+                    LOGGER.log(Level.WARNING, "Detected registry server liaison finished execution." +
+                            "Terminating peer list monitor. \nAssociated reason:\n" + e.toString());
+                } catch (InterruptedException | NotBoundException e) {
+                    LOGGER.log(Level.SEVERE, e.toString());
+                    e.printStackTrace();
+                    throw new RuntimeException("Failure in peer list monitor thread.");
                 }
-            } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Detected registry server liaison finished execution." +
-                        "Terminating peer list monitor. \nAssociated reason:\n" + e.toString());
-            } catch (InterruptedException | NotBoundException e) {
-                LOGGER.log(Level.SEVERE, e.toString());
-                e.printStackTrace();
-                throw new RuntimeException("Failure in peer list monitor thread.");
             }
         };
         new Thread(peerListMonitor).start();
     }
 
     private void discoverReplicatedPeers() throws IOException, NotBoundException {
-//        Set<String> peers = registryServerLiaison.getListOfServers();
-//        // TODO: won't work until we can get accurate port back from registry server getList (currently storing heartbeatPort)!
-//        peers.remove(serverIp.getHostAddress() + registryServerLiaison.getDelimiter() + serverPort);
-//
-//        joinDiscoveredPeers(peers);
-//        leaveStalePeers(peers);
-//        findCoordinator();
+        Set<String> peers = registryServerLiaison.getListOfServers();
+        // TODO: won't work until we can get accurate port back from registry server getList (currently storing heartbeatPort)!
+        peers.remove(serverIp.getHostAddress() + registryServerLiaison.getDelimiter() + serverPort);
+        joinDiscoveredPeers(peers);
+        leaveStalePeers(peers);
+        findCoordinator();
     }
 
     private void joinDiscoveredPeers(Set<String> replicatedServers) throws IOException, NotBoundException {
@@ -102,7 +113,7 @@ class PeerListManager {
     }
 
     private void findCoordinator() throws RemoteException {
-        ReplicatedPubSubServer currentCoordinator = null;
+        ReplicatedPubSubServer currentCoordinator = this.coordinator;
         if(!clientsForReplicatedPeers.isEmpty()) {
             // TODO: find a more efficient means of coordinator determination
             for(Client peerClient: clientsForReplicatedPeers.values()) {
@@ -122,4 +133,9 @@ class PeerListManager {
             return this.coordinator;
         }
     }
+
+    public Set<String> getListOfServers() throws IOException {
+        return registryServerLiaison.getListOfServers();
+    }
+
 }

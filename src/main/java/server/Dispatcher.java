@@ -2,6 +2,7 @@ package server;
 
 import message.Message;
 import message.Protocol;
+import runnableComponents.Scheduler;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,6 +21,7 @@ class Dispatcher {
     private Map<String, CommunicationManager> clientToClientManager;
 
     private boolean shouldRetrieveMatchesAutomatically;
+    private Scheduler subscriptionPullScheduler;
 
     private MessageStore store;
 
@@ -39,6 +41,7 @@ class Dispatcher {
 
     void cleanup() {
         clientTaskExecutor.shutdown();
+        subscriptionPullScheduler.tellThreadToStop();
     }
 
     private void createClientTaskExecutor() {
@@ -46,18 +49,21 @@ class Dispatcher {
     }
 
     private void startSubscriptionPullScheduler() {
-        Runnable subscriptionPullScheduler = () -> {
-            try {
-                while (true) {
-                    Thread.sleep(500);
-                    for (CommunicationManager manager: clientToClientManager.values()) {
-                        queueTaskFor(manager, CommunicationManager.Call.PULL_MATCHES, null);
+        this.subscriptionPullScheduler = new Scheduler() {
+            @Override
+            public void run() {
+                try {
+                    while (shouldThreadContinue()) {
+                        Thread.sleep(500);
+                        for (CommunicationManager manager: clientToClientManager.values()) {
+                            queueTaskFor(manager, CommunicationManager.Call.PULL_MATCHES, null);
+                        }
                     }
+                } catch (InterruptedException e) {
+                    LOGGER.log(Level.SEVERE, e.toString());
+                    e.printStackTrace();
+                    throw new RuntimeException("Failure in subscription pull scheduler thread.");
                 }
-            } catch (InterruptedException e) {
-                LOGGER.log(Level.SEVERE, e.toString());
-                e.printStackTrace();
-                throw new RuntimeException("Failure in subscription pull scheduler thread.");
             }
         };
         new Thread(subscriptionPullScheduler).start();

@@ -1,7 +1,6 @@
 package server;
 
-import listener.Listener;
-import message.Protocol;
+import runnableComponents.Listener;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -34,17 +33,17 @@ public class HeartbeatListener extends Listener {
         DatagramPacket heartbeatPacket = new DatagramPacket(new byte[messageSize], messageSize);
 
         try {
-            while (true) {
+            while (shouldThreadContinue()) {
                 super.receivePacket(heartbeatPacket);
                 String rawMessage = new String(heartbeatPacket.getData(), 0, heartbeatPacket.getLength());
                 super.sendPacket(heartbeatPacket);
                 LOGGER.log(Level.INFO, rawMessage);
             }
         } catch (SocketException e) {
-            if (shouldThreadStop()) {
-                LOGGER.log(Level.FINE, "HeartbeatListener gracefully exiting after being asked to stop.");
+            if (!shouldThreadContinue()) {
+                LOGGER.log(Level.FINE, "ClientListener gracefully exiting after being asked to stop.");
             } else {
-                LOGGER.log(Level.WARNING, "HeartbeatListener failed to receive incoming message: " + e.toString());
+                LOGGER.log(Level.WARNING, "ClientListener failed to receive incoming message: " + e.toString());
                 e.printStackTrace();
             }
         } catch (IOException | IllegalArgumentException e) {
