@@ -56,9 +56,11 @@ public class ClientListener extends Listener {
         DatagramPacket packetToReceive = new DatagramPacket(new byte[messageSize], messageSize);
         try {
             while(shouldThreadContinue()) {
+//                System.out.println("Client about to wait for message;");
                 Message newMessage = getMessageFromRemote(packetToReceive);
-
-                String possibleClientId = protocol.extractIdIfThisIsIdMessage(newMessage.asRawMessage());
+//                System.out.println("Client received message" + newMessage.asRawMessage());
+//                System.out.println("\tChecking if received message is client id message  " + newMessage.asRawMessage());
+                String possibleClientId = newMessage.extractIdIfThisIsIdMessage();
                 if(!possibleClientId.isEmpty()) {
                     setReceivedIdAndSignalClient(possibleClientId);
 
@@ -89,9 +91,10 @@ public class ClientListener extends Listener {
     }
 
     private void setReceivedIdAndSignalClient(String clientId) {
+//        System.out.println("Trying to grab client id lock for new client id " + clientId);
         idReceivedByListenerLock.lock();
         try {
-            receivedClientId = clientId;
+            this.receivedClientId = clientId;
             idHasBeenSet.signal();
         } finally {
             idReceivedByListenerLock.unlock();

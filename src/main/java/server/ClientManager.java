@@ -60,6 +60,7 @@ public class ClientManager implements CommunicationManager {
     }
     @Override
     public void deliverClientId(Message clientIdMessage) {
+//        System.out.println("Delivering client id to " + clientIp + ", " + clientPort);
         deliverPublication(clientIdMessage.asRawMessage(), protocol.getMessageSize());
     }
 
@@ -155,6 +156,7 @@ public class ClientManager implements CommunicationManager {
         Set<String> singlePublicationSet = new HashSet<>();
         singlePublicationSet.add(publicationToDeliver);
         deliverPublications(singlePublicationSet, messageSize);
+//        System.out.println("deliveredPublication");
     }
 
     public void clientLeft() {

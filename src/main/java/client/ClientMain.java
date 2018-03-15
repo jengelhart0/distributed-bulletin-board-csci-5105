@@ -17,7 +17,9 @@ public class ClientMain {
 
     private static Client createNewClient(String remoteServerIp, int listenPort) throws IOException, NotBoundException {
         Client client = new Client(CommunicateArticle.ARTICLE_PROTOCOL, listenPort);
+//        System.out.println("Created client at listenport" + listenPort);
         client.initializeRemoteCommunication(remoteServerIp, CommunicateArticle.REMOTE_OBJECT_PORT, Communicate.NAME);
+//        System.out.println("Initialized client at listenport" + listenPort);
         return client;
     }
 
@@ -26,7 +28,7 @@ public class ClientMain {
         Set<String> receivedMessages = new HashSet<>();
 
         for (Message message : received) {
-            receivedMessages.add(message.asRawMessage());
+            receivedMessages.add(message.withoutInternalFields());
         }
 
         Set<String> expectedSet = new HashSet<>();

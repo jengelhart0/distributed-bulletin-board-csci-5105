@@ -37,13 +37,13 @@ public class HeartbeatListener extends Listener {
                 super.receivePacket(heartbeatPacket);
                 String rawMessage = new String(heartbeatPacket.getData(), 0, heartbeatPacket.getLength());
                 super.sendPacket(heartbeatPacket);
-                LOGGER.log(Level.INFO, rawMessage);
+//                LOGGER.log(Level.INFO, rawMessage);
             }
         } catch (SocketException e) {
             if (!shouldThreadContinue()) {
-                LOGGER.log(Level.FINE, "ClientListener gracefully exiting after being asked to stop.");
+                LOGGER.log(Level.FINE, "HeartbeatListener gracefully exiting after being asked to stop.");
             } else {
-                LOGGER.log(Level.WARNING, "ClientListener failed to receive incoming message: " + e.toString());
+                LOGGER.log(Level.WARNING, "HeartbeatListener failed to receive incoming message: " + e.toString());
                 e.printStackTrace();
             }
         } catch (IOException | IllegalArgumentException e) {

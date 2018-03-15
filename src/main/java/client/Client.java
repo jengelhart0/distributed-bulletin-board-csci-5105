@@ -83,6 +83,7 @@ public class Client implements Runnable {
         synchronized (communicateLock) {
             this.communicate = (Communicate) registry.lookup(this.communicateName);
         }
+//        System.out.println("Established remote object for client at listenport" + listenPort);
     }
 
     public boolean join() {
@@ -120,9 +121,9 @@ public class Client implements Runnable {
                 isCallSuccessful = makeCall(message, call);
             }
             if (!isCallSuccessful) {
-                throw new RuntimeException("RMI returned false.");
+                throw new RuntimeException("RMI call " + call.toString() + " returned false.");
             }
-        } catch (RemoteException | IllegalArgumentException e) {
+        } catch (NotBoundException | IOException | IllegalArgumentException e) {
             LOGGER.log(Level.SEVERE, "Attempt to establish communication or communicate failed: " + e.toString());
             return false;
         }
@@ -130,7 +131,7 @@ public class Client implements Runnable {
     }
 
     private boolean makeCall(Message message, RemoteMessageCall call)
-            throws RemoteException {
+            throws IOException, NotBoundException {
 
         if (this.communicate == null) {
             throw new IllegalArgumentException(
@@ -173,11 +174,16 @@ public class Client implements Runnable {
     }
 
     private void ensureThisHasId() {
+//        System.out.println("Trying to get id for client at listenport" + listenPort);
+
         if (id == null) {
             idReceivedByListenerLock.lock();
             try {
-                idHasBeenSet.await();
+                if(listener.getReceivedClientId() == null) {
+                    idHasBeenSet.await();
+                }
                 id = listener.getReceivedClientId();
+//                System.out.println("Id " + id + " received for client at listenport" + listenPort);
             } catch (InterruptedException e) {
                 LOGGER.log(Level.WARNING,
                         "Client interrupted while waiting for its ID to be set! " +

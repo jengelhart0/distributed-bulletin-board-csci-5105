@@ -1,10 +1,17 @@
 package message;
 
+import client.Client;
+
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 public class Protocol {
+    private static final Logger LOGGER = Logger.getLogger( Protocol.class.getName() );
+
     // It is understood that all messages have data/payload fields,
     // so we only indicate others (i.e., the query fields).
     private List<String> queryFields;
@@ -13,6 +20,7 @@ public class Protocol {
     private String wildcard;
     private int messageSize;
     private String emptyInternalFields;
+    private int numInternalFields;
     private int numExternalFields;
 
     public Protocol(List<String> fields, List<String[]> allowedFieldValues,
@@ -34,6 +42,7 @@ public class Protocol {
     private void combineInternalAndExternalFields(List<String> externalFields,
                                                   List<String[]> allowedExternalFieldValues) {
         this.numExternalFields = externalFields.size();
+        this.numInternalFields = 2;
         this.emptyInternalFields = wildcard + delimiter + wildcard + delimiter;
 
         this.queryFields = new LinkedList<>();
@@ -76,9 +85,10 @@ public class Protocol {
     }
 
     public boolean validate(String message, boolean isSubscription) {
-        if(messageIsClientIdMessage(message)) {
+        if(isClientIdMessage(message)) {
             return true;
         }
+
         if (!isBasicallyValid(message)) {
             return false;
         }
@@ -100,7 +110,7 @@ public class Protocol {
         return padder.toString();
     }
 
-    private boolean messageIsClientIdMessage(String message) {
+    boolean isClientIdMessage(String message) {
         String[] parsed = parse(message);
         return parsed.length > 1
                 && parsed[0].equals("clientId")
@@ -156,7 +166,7 @@ public class Protocol {
     }
 
     public String extractIdIfThisIsIdMessage(String message) {
-        if(messageIsClientIdMessage(message)) {
+        if(isClientIdMessage(message)) {
             // client id message format: "clientId;<ID>" if ';' is delimiter
             return parse(message)[1];
         }
@@ -167,6 +177,22 @@ public class Protocol {
         int internalFieldsLength = emptyInternalFields.length();
         return message.length() >= internalFieldsLength
                 && message.startsWith(emptyInternalFields)
-                && parse(message.substring(internalFieldsLength)).length == numExternalFields;
+                // message contents always part of message but not counted as external field.
+                && parse(message.substring(internalFieldsLength)).length == numExternalFields + 1;
     }
+
+    String withoutInternalFields(String message) {
+        String[] parsed = parse(message);
+        // can happen if this is clientId message
+        if (parsed.length <= numInternalFields) {
+            return message;
+        }
+        String[] requested = Arrays.copyOfRange(parsed, numInternalFields, parsed.length);
+        StringBuilder result = new StringBuilder(requested[0]);
+        for (int i = 1; i < requested.length; i++) {
+            result.append(delimiter + requested[i]);
+        }
+        return result.toString();
+    }
+
 }

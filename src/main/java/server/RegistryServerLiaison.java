@@ -77,6 +77,7 @@ class RegistryServerLiaison {
     }
 
     private void sendRegistryServerMessage(String rawMessage) throws IOException {
+//        System.out.println("Registering with registry server: " + this.serverPort);
         DatagramPacket packet = makeRegistryServerPacket(rawMessage);
         try (DatagramSocket socket = new DatagramSocket()) {
             socket.send(packet);
@@ -91,6 +92,7 @@ class RegistryServerLiaison {
     }
 
     public Set<String> getListOfServers() throws IOException {
+
         int listSizeinBytes = this.serverListSize;
         DatagramPacket registryPacket = new DatagramPacket(new byte[listSizeinBytes], listSizeinBytes);
 
@@ -103,12 +105,17 @@ class RegistryServerLiaison {
             getListSocket.send(makeRegistryServerPacket(getListMessage));
             getListSocket.receive(registryPacket);
         }
+//        System.out.println(new String(registryPacket.getData(), 0, registryPacket.getLength(), "UTF8"));
         String[] rawServerList = new String(registryPacket.getData(), 0, registryPacket.getLength(), "UTF8")
                 .split(registryMessageDelimiter);
 
+        if(rawServerList.length == 1) {
+            System.out.println("This was only server in list from GetList");
+        }
+
         Set<String> results = new HashSet<>();
         for (int i = 0; i < rawServerList.length - 1; i += 3) {
-            results.add(rawServerList[i] + ";" + rawServerList[i + 1] + ";" + rawServerList[i + 2]);
+            results.add(rawServerList[i] + ";" + rawServerList[i + 2]);
         }
         return results;
     }

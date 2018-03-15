@@ -9,31 +9,35 @@ public class Message {
     private String asString;
     private Query query;
     private boolean isSubscription;
+    private String withoutInternal;
 
     public Message(Protocol protocol, String rawMessage, boolean isSubscription) {
         this.protocol = protocol;
-
-        setProcessedMessage(rawMessage, protocol);
-
-        if (!validate(isSubscription)) {
-            throw new IllegalArgumentException("Was an invalid subscription: " + asString);
-        }
         this.isSubscription = isSubscription;
+        if (!isClientIdMessage(rawMessage)) {
+            setProcessedMessage(rawMessage, protocol);
+            if (!validate(isSubscription)) {
+                throw new IllegalArgumentException("Was an invalid message: " + asString);
+            }
+            setQuery();
+        } else {
+            this.asString = protocol.padMessage(rawMessage);
+        }
 
-        setQuery();
     }
 
     private void setProcessedMessage(String rawMessage, Protocol protocol) {
         String processedMessage = rawMessage;
         String[] fieldsInMessage = protocol.parse(rawMessage);
-        if(fieldsInMessage.length == protocol.getNumExternalFields()) {
+        // message contents is an "assumed field": its in fieldsInMessage but never counted in externalFields
+        if(fieldsInMessage.length == protocol.getNumExternalFields() + 1) {
             processedMessage = protocol.getEmptyInternalFields() + rawMessage;
         }
 
-        int messageSize = protocol.getMessageSize();
-        if(processedMessage.length() <= messageSize) {
+//        int messageSize = protocol.getMessageSize();
+//        if(processedMessage.length() <= messageSize) {
             processedMessage = protocol.padMessage(processedMessage);
-        }
+//        }
 
         this.asString = processedMessage;
     }
@@ -44,6 +48,13 @@ public class Message {
 
     public String asRawMessage() {
         return asString;
+    }
+
+    public String withoutInternalFields() {
+        if (withoutInternal == null) {
+            withoutInternal = protocol.padMessage(protocol.withoutInternalFields(asString));
+        }
+        return withoutInternal;
     }
 
     private void setQuery() {
@@ -89,5 +100,13 @@ public class Message {
 
     public void refreshAccessOffsets() {
         this.query.refreshAccessOffsets();
+    }
+
+    private boolean isClientIdMessage(String message) {
+        return protocol.isClientIdMessage(message);
+    }
+
+    public String extractIdIfThisIsIdMessage() {
+        return protocol.extractIdIfThisIsIdMessage(withoutInternalFields());
     }
 }

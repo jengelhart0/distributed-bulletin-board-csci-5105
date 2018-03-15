@@ -5,6 +5,7 @@ import message.Protocol;
 
 import java.io.IOException;
 import java.net.*;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -88,7 +89,7 @@ public class ReplicatedPubSubServer implements Communicate {
             this.registryMessageSize = 120;
             this.serverListSize = 1024;
             this.heartbeatPort = 9453;
-            this.startingPeerListenPort = 8888;
+            this.startingPeerListenPort = 18888;
             this.store = new PairedKeyMessageStore();
             this.shouldRetrieveMatchesAutomatically = true;
         }
@@ -164,7 +165,7 @@ public class ReplicatedPubSubServer implements Communicate {
             makeThisARemoteCommunicationServer();
             dispatcher.initialize();
             peerListManager.initialize(this);
-        } catch (IOException | RuntimeException e) {
+        } catch (IOException | NotBoundException | RuntimeException e) {
             LOGGER.log(Level.SEVERE, "Failed on server initialization: " + e.toString());
             e.printStackTrace();
             cleanup();
@@ -194,8 +195,8 @@ public class ReplicatedPubSubServer implements Communicate {
     }
 
     private void makeThisARemoteCommunicationServer() {
-        LOGGER.log(Level.INFO, "IP " + this.ip.getHostAddress());
-        LOGGER.log(Level.INFO, "Port " + Integer.toString(this.port));
+//        LOGGER.log(Level.INFO, "IP " + this.ip.getHostAddress());
+//        LOGGER.log(Level.INFO, "Port " + Integer.toString(this.port));
 
         try {
             System.setProperty("java.rmi.server.hostname", this.ip.getHostAddress());
@@ -212,17 +213,19 @@ public class ReplicatedPubSubServer implements Communicate {
     }
 
     @Override
-    public boolean Join(String IP, int Port, String existingClientId, String previousServer) throws RemoteException {
+    public boolean Join(String IP, int Port, String existingClientId, String previousServer) throws NotBoundException, IOException {
         synchronized (numClientsLock) {
             if(numClients >= maxClients) {
+                LOGGER.log(Level.SEVERE, "Maximum clients exceeded for server " + getThisServersIpPortString());
                 return false;
             }
             numClients++;
         }
         dispatcher.addNewClient(IP, Port);
         if(existingClientId == null) {
+//            System.out.println(getThisServersIpPortString() + " going to getCoordinator() in Join() for new client ID");
             String newClientId = peerListManager.getCoordinator().requestNewClientId();
-            dispatcher.returnClientIdToClient(IP, Port, newClientId);
+            return dispatcher.returnClientIdToClient(IP, Port, newClientId);
         }
 //        consistency.enforceOnJoin(existingClientId, previousServer);
         return true;
@@ -265,17 +268,22 @@ public class ReplicatedPubSubServer implements Communicate {
     }
 
     @Override
-    public ReplicatedPubSubServer getCoordinator() {
+    public Communicate getCoordinator() throws IOException, NotBoundException {
         return peerListManager.getCoordinator();
     }
 
     @Override
-    public String requestNewMessageId() {
+    public boolean isCoordinatorKnown() throws RemoteException {
+        return peerListManager.isCoordinatorKnown();
+    }
+
+    @Override
+    public String requestNewMessageId() throws RemoteException {
         return peerListManager.requestNewMessageId();
     }
 
     @Override
-    public String requestNewClientId() {
+    public String requestNewClientId() throws RemoteException {
         return peerListManager.requestNewClientId();
     }
 
