@@ -41,7 +41,9 @@ class Dispatcher {
 
     void cleanup() {
         clientTaskExecutor.shutdown();
-        subscriptionPullScheduler.tellThreadToStop();
+        if(shouldRetrieveMatchesAutomatically) {
+            subscriptionPullScheduler.tellThreadToStop();
+        }
     }
 
     private void createClientTaskExecutor() {
@@ -94,6 +96,10 @@ class Dispatcher {
 
     public boolean unsubscribe(String IP, int Port, String Message) {
         return createMessageTask(IP, Port, Message, CommunicationManager.Call.UNSUBSCRIBE, true);
+    }
+
+    public boolean retrieve(String IP, int Port, String queryMessage) {
+        return createMessageTask(IP, Port, queryMessage, CommunicationManager.Call.RETRIEVE, true);
     }
 
     public boolean publish(String Message, String IP, int Port) {

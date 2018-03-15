@@ -106,6 +106,16 @@ public class Client implements Runnable {
         return communicateWithRemote(subscription, RemoteMessageCall.UNSUBSCRIBE);
     }
 
+    public List<String> retrieve(Message queryMessage) {
+        if(communicateWithRemote(queryMessage, RemoteMessageCall.RETRIEVE)) {
+
+        } else {
+            LOGGER.log(Level.SEVERE, "Attempt to retrieve from server failed");
+            return null;
+        }
+        return null;
+    }
+
     private boolean ping() throws RemoteException {
         return this.communicate.Ping();
     }
@@ -167,6 +177,9 @@ public class Client implements Runnable {
                         address, this.listenPort, message.asRawMessage());
             case UNSUBSCRIBE:
                 return this.communicate.Unsubscribe(
+                        address, this.listenPort, message.asRawMessage());
+            case RETRIEVE:
+                return this.communicate.Retrieve(
                         address, this.listenPort, message.asRawMessage());
             default:
                 throw new IllegalArgumentException("Invalid RemoteMessageCall passed");
@@ -238,5 +251,9 @@ public class Client implements Runnable {
 
     public List<Message> getCurrentMessageFeed() {
         return this.listener.getCurrentMessageFeed();
+    }
+
+    public String getId() {
+        return this.id;
     }
 }

@@ -121,26 +121,10 @@ public class Protocol {
         if(message == null || message.length() != this.messageSize) {
             return false;
         }
-
         String[] parsedValues = parse(message);
         int valuesLength = parsedValues.length;
-        if(valuesLength != queryFields.size() + 1) {
-            return false;
-        }
 
-        if(!adheresToValueRestrictions(message)) {
-            return false;
-        }
-
-        boolean nonWildcardValueExists = false;
-        int i = 0;
-        while(!nonWildcardValueExists && i < (valuesLength - 1)) {
-            if (!(parsedValues[i].equals(this.wildcard))) {
-                nonWildcardValueExists = true;
-            }
-            i++;
-        }
-        return nonWildcardValueExists;
+        return (valuesLength == queryFields.size() + 1) && adheresToValueRestrictions(message);
     }
 
     private boolean adheresToValueRestrictions(String message) {

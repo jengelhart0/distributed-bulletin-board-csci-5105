@@ -205,7 +205,7 @@ public class ReplicatedPubSubServer implements Communicate {
                     (Communicate) UnicastRemoteObject.exportObject(this, 0);
             Registry registry = LocateRegistry.createRegistry(this.port);
             registry.rebind(this.name, stub);
-            LOGGER.log(Level.INFO, "ReplicatedPubSubServer bound");
+//            LOGGER.log(Level.INFO, "ReplicatedPubSubServer bound");
         } catch (RemoteException re) {
             LOGGER.log(Level.SEVERE, re.toString());
             re.printStackTrace();
@@ -247,13 +247,18 @@ public class ReplicatedPubSubServer implements Communicate {
     public boolean Subscribe(String IP, int Port, String Message) throws RemoteException {
 
         // TODO: need to add messageId/clientId
-        return protocol.areInternalFieldsBlank(Message) && dispatcher.subscribe(IP, Port, Message);
+        return dispatcher.subscribe(IP, Port, Message);
     }
 
     @Override
     public boolean Unsubscribe(String IP, int Port, String Message) throws RemoteException {
         // TODO: need to add messageId/clientId
-        return protocol.areInternalFieldsBlank(Message) && dispatcher.unsubscribe(IP, Port, Message);
+        return dispatcher.unsubscribe(IP, Port, Message);
+    }
+
+    @Override
+    public boolean Retrieve(String IP, int Port, String queryMessage) throws RemoteException {
+        return dispatcher.retrieve(IP, Port, queryMessage);
     }
 
     @Override

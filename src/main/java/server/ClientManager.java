@@ -52,6 +52,8 @@ public class ClientManager implements CommunicationManager {
                 return () -> publish(message, store);
             case UNSUBSCRIBE:
                 return () -> unsubscribe(message);
+            case RETRIEVE:
+                return() -> retrieve(message, store);
             case PULL_MATCHES:
                 return () -> pullSubscriptionMatchesFromStore(store);
             default:
@@ -93,6 +95,11 @@ public class ClientManager implements CommunicationManager {
 
             this.subscriptions = Collections.synchronizedList(afterUnsubscribe);
         }
+    }
+
+    @Override
+    public void retrieve(Message queryMessage, MessageStore store) {
+        System.out.println("Unimplemented retrieve() called in ClientManager.");
     }
 
     @Override
