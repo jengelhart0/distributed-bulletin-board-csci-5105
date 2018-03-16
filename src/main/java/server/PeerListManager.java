@@ -2,6 +2,7 @@ package server;
 
 import client.Client;
 import communicate.Communicate;
+import message.Message;
 import message.Protocol;
 import runnableComponents.Scheduler;
 
@@ -10,6 +11,7 @@ import java.net.BindException;
 import java.net.InetAddress;
 import java.rmi.NotBoundException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -231,4 +233,14 @@ class PeerListManager {
         throw new IllegalArgumentException("Server at " + thisServer.getThisServersIpPortString() +
                 " asked for new client ID but is not coordinator or has no coordination state!");
     }
+
+    List<Message> retrieveFromPeer(String server, Message queryMessage) throws InterruptedException {
+        if(clientsForReplicatedPeers.containsKey(server)) {
+            return clientsForReplicatedPeers.get(server).retrieve(queryMessage);
+        } else {
+            throw new IllegalArgumentException("retrieveFromPeer: Tried to retrieve from a peer with no client in " +
+                    "clientsForReplicatedPeers!");
+        }
+    }
+
 }

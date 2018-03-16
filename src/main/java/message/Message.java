@@ -109,4 +109,12 @@ public class Message {
         return protocol.extractIdIfThisIsIdMessage(withoutInternalFields());
     }
 
+    public void insertClientId(String clientId) {
+        String withId = protocol.insertClientId(asString, clientId);
+        if(withId == null) {
+            throw new IllegalArgumentException("Tried to insert client id in message whose internal fields weren't blank.");
+        }
+        asString = withId;
+    }
+
 }

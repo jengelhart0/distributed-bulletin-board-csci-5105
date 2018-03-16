@@ -112,7 +112,16 @@ public class Protocol {
     }
 
     public String padMessage(String rawMessage) {
-        StringBuilder padder = new StringBuilder(rawMessage);
+
+        String message = stripPadding(rawMessage);
+
+        if(message.length() > messageSize) {
+            throw new IllegalArgumentException(
+                    "Tried to create message violating protocol: message too large");
+        }
+
+
+        StringBuilder padder = new StringBuilder(message);
         while (padder.length() < messageSize) {
             padder.append(" ");
         }
@@ -204,4 +213,42 @@ public class Protocol {
         return result.toString();
     }
 
+    public String getRetrieveAllByClientQuery(String clientId) {
+        StringBuilder message = new StringBuilder()
+                .append("")
+                .append(delimiter)
+                .append(clientId);
+        for(int i = 0; i < numExternalFields + 1; i++) {
+            message.append(delimiter).append("");
+        }
+        return message.toString();
+    }
+
+    public String insertClientId(String message, String clientId) {
+        if(!areInternalFieldsBlank(message)) {
+            return null;
+        }
+        String[] parsed = parse(message);
+        parsed[1] = clientId;
+
+        StringBuilder result = new StringBuilder();
+        result.append(parsed[0]);
+        for(int i = 1; i < parsed.length; i++) {
+            result.append(delimiter).append(parsed[i]);
+        }
+        return result.toString();
+    }
+
+    public String buildRetrieveNotification(String query, int numRetrieved) {
+        //TODO: make this work
+
+        String strippedQuery = stripPadding(query);
+
+        String retrieveNotification = "retrieveNotification"
+                + getControlDelimiter()
+                + strippedQuery
+                + getControlDelimiter()
+                + numRetrieved;
+        return retrieveNotification;
+    }
 }

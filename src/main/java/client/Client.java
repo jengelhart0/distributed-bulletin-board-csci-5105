@@ -148,7 +148,7 @@ public class Client implements Runnable {
             if (!isCallSuccessful) {
                 throw new RuntimeException("RMI call " + call.toString() + " returned false.");
             }
-        } catch (NotBoundException | IOException | IllegalArgumentException e) {
+        } catch (NotBoundException | IOException | IllegalArgumentException | InterruptedException e) {
             LOGGER.log(Level.SEVERE, "Attempt to establish communication or communicate failed: " + e.toString());
             return false;
         }
@@ -156,7 +156,7 @@ public class Client implements Runnable {
     }
 
     private boolean makeCall(Message message, RemoteMessageCall call)
-            throws IOException, NotBoundException {
+            throws IOException, NotBoundException, InterruptedException {
 
         if (this.communicate == null) {
             throw new IllegalArgumentException(
@@ -210,7 +210,7 @@ public class Client implements Runnable {
                 if(listener.getReceivedClientId() == null) {
                     idHasBeenSet.await();
                 }
-                id = listener.getReceivedClientId();
+                id = protocol.stripPadding(listener.getReceivedClientId());
 //                System.out.println("Id " + id + " received for client at listenport" + listenPort);
             } catch (InterruptedException e) {
                 LOGGER.log(Level.WARNING,

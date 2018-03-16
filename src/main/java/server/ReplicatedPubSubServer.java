@@ -1,6 +1,7 @@
 package server;
 
 import communicate.Communicate;
+import message.Message;
 import message.Protocol;
 
 import java.io.IOException;
@@ -11,6 +12,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 
+import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,6 +32,7 @@ public class ReplicatedPubSubServer implements Communicate {
 
     private Dispatcher dispatcher;
     private PeerListManager peerListManager;
+    private ConsistencyPolicy consistencyPolicy;
 
     private ReplicatedPubSubServer(Builder builder) {
 
@@ -50,6 +53,8 @@ public class ReplicatedPubSubServer implements Communicate {
 
         this.peerListManager = new PeerListManager(name, ip, port, protocol,
                 builder.startingPeerListenPort, registryServerLiaison);
+        builder.consistencyPolicy.initialize(this, protocol, dispatcher);
+        this.consistencyPolicy = builder.consistencyPolicy;
     }
 
     public static class Builder {
@@ -72,6 +77,8 @@ public class ReplicatedPubSubServer implements Communicate {
 
         private MessageStore store;
 
+        private ConsistencyPolicy consistencyPolicy;
+
         private boolean shouldRetrieveMatchesAutomatically;
 
 
@@ -81,7 +88,7 @@ public class ReplicatedPubSubServer implements Communicate {
 
             // set optional parameters to defaults
             this.name = Communicate.NAME;
-            this.maxClients = 1000;
+            this.maxClients = 2000;
             this.serverPort = 1099;
             this.registryServerAddress = InetAddress.getByName("localhost");
             this.registryServerPort = 5105;
@@ -92,6 +99,7 @@ public class ReplicatedPubSubServer implements Communicate {
             this.startingPeerListenPort = 18888;
             this.store = new PairedKeyMessageStore();
             this.shouldRetrieveMatchesAutomatically = true;
+            this.consistencyPolicy = new ReadYourWritesPolicy();
         }
 
         public Builder name(String name) {
@@ -146,6 +154,11 @@ public class ReplicatedPubSubServer implements Communicate {
 
         public Builder store(MessageStore store) {
             this.store = store;
+            return this;
+        }
+
+        public Builder consistencyPolicy(ConsistencyPolicy consistencyPolicy) {
+            this.consistencyPolicy = consistencyPolicy;
             return this;
         }
 
@@ -213,7 +226,8 @@ public class ReplicatedPubSubServer implements Communicate {
     }
 
     @Override
-    public boolean Join(String IP, int Port, String existingClientId, String previousServer) throws NotBoundException, IOException {
+    public boolean Join(String IP, int Port, String existingClientId, String previousServer)
+            throws NotBoundException, IOException, InterruptedException {
         synchronized (numClientsLock) {
             if(numClients >= maxClients) {
                 LOGGER.log(Level.SEVERE, "Maximum clients exceeded for server " + getThisServersIpPortString());
@@ -227,7 +241,7 @@ public class ReplicatedPubSubServer implements Communicate {
             String newClientId = peerListManager.getCoordinator().requestNewClientId();
             return dispatcher.returnClientIdToClient(IP, Port, newClientId);
         }
-//        consistency.enforceOnJoin(existingClientId, previousServer);
+        consistencyPolicy.enforceOnJoin(IP, Port, existingClientId, previousServer);
         return true;
     }
 
@@ -255,6 +269,7 @@ public class ReplicatedPubSubServer implements Communicate {
 
     @Override
     public boolean Retrieve(String IP, int Port, String queryMessage) throws RemoteException {
+        System.out.println("Going through pubsubserver to dispatcher with message " + queryMessage);
         return dispatcher.retrieve(IP, Port, queryMessage);
     }
 
@@ -296,4 +311,9 @@ public class ReplicatedPubSubServer implements Communicate {
     public String getThisServersIpPortString() {
         return ServerUtils.getIpPortString(ip.getHostAddress(), port, protocol);
     }
+
+    List<Message> retrieveFromPeer(String server, Message queryMessage) throws InterruptedException {
+        return peerListManager.retrieveFromPeer(server, queryMessage);
+    }
+
 }

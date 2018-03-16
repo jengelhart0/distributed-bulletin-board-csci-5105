@@ -25,15 +25,15 @@ public class TestConsistency extends ReplicatedClientSetup {
 //        makeAllLeave(singleClientArray);
 //    }
 
-    @Test
-    public void testMultipleClientsMoveAmongServers() throws RemoteException, NotBoundException  {
-        List<Integer> serverPorts = new ArrayList<>(replicatedServers.keySet());
-        makeAllJoinRandomServers(uninitializedClients, serverPorts);
-        makeAllLeave(uninitializedClients);
-        // move to different servers
-        makeAllJoinRandomServers(uninitializedClients, serverPorts);
-        makeAllLeave(uninitializedClients);
-    }
+//    @Test
+//    public void testMultipleClientsMoveAmongServers() throws RemoteException, NotBoundException  {
+//        List<Integer> serverPorts = new ArrayList<>(replicatedServers.keySet());
+//        makeAllJoinRandomServers(uninitializedClients, serverPorts);
+//        makeAllLeave(uninitializedClients);
+//        // move to different servers
+//        makeAllJoinRandomServers(uninitializedClients, serverPorts);
+//        makeAllLeave(uninitializedClients);
+//    }
 
     private void makeAllJoinRandomServers(Client[] clients, List<Integer> serverPorts)
             throws RemoteException, NotBoundException {
@@ -54,16 +54,28 @@ public class TestConsistency extends ReplicatedClientSetup {
     }
 
     @Test
-    public void testReadYourWritesSingleClient() throws RemoteException, NotBoundException {
-//        Client testClient = uninitializedClients[0];
-//        testClient.initializeRemoteCommunication(testServerIp, serverPorts.get(0), serverInterfaceName);
-//        testClient.publish(new Message(testProtocol1, ";my non-reply test content 1", false));
-//        testClient.leave();
-//
-//        testClient.initializeRemoteCommunication(testServerIp, serverPorts.get(1), serverInterfaceName);
-//        String delim = testProtocol1.getDelimiter();
-//        String[] results = testClient.retrieve(new Message(testProtocol1, delim + testClient.getId() + delim + delim, true));
-//
+    public void testReadYourWritesSingleClient() throws RemoteException, NotBoundException, InterruptedException {
+        Client testClient = uninitializedClients[0];
+        testClient.initializeRemoteCommunication(testServerIp, serverPorts.get(0), serverInterfaceName);
+        String testMessage = ";my non-reply test content 1";
+        testClient.publish(new Message(testProtocol1, testMessage, false));
+        testClient.leave();
+
+//        Thread.sleep(5000);
+
+        testClient.initializeRemoteCommunication(testServerIp, serverPorts.get(1), serverInterfaceName);
+        Thread.sleep(2000);
+        List<Message> results = testClient.retrieve(
+                new Message(testProtocol1, testProtocol1.getRetrieveAllByClientQuery(testClient.getId()), true));
+
+        boolean found = false;
+        for(Message message: results) {
+            if(message.asRawMessage().equals(testMessage)) {
+                found = true;
+            }
+        }
+
+        assertTrue(found);
 
     }
 }

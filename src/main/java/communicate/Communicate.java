@@ -12,7 +12,8 @@ public interface Communicate extends Remote {
         JOIN, LEAVE, PUBLISH, SUBSCRIBE, UNSUBSCRIBE, RETRIEVE
     }
 
-    boolean Join(String IP, int Port, String existingClientId, String previousServer) throws NotBoundException, IOException;
+    boolean Join(String IP, int Port, String existingClientId, String previousServer)
+            throws NotBoundException, IOException, InterruptedException;
     boolean Leave(String IP, int Port) throws RemoteException;
     boolean Subscribe(String IP, int Port, String Message) throws RemoteException;
     boolean Unsubscribe(String IP, int Port, String Message) throws RemoteException;

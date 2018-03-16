@@ -102,19 +102,14 @@ public class ClientManager implements CommunicationManager {
         Set<String> toDeliver = getSingleQueryMatches(queryMessage, store);
         int numRetrieved = toDeliver.size();
 
-        String strippedQuery = protocol.stripPadding(queryMessage.asRawMessage());
-
-        String retrieveNotification = "retrieveNotification"
-                + protocol.getControlDelimiter()
-                + strippedQuery
-                + protocol.getControlDelimiter()
-                + numRetrieved;
+        String retrieveNotification = protocol.buildRetrieveNotification(queryMessage.asRawMessage(), numRetrieved);
         deliverControlMessage(new Message(protocol, retrieveNotification, true));
         deliverPublications(toDeliver, protocol.getMessageSize());
     }
 
     @Override
     public void publish(Message message, MessageStore store) {
+        message.insertClientId(clientId);
         synchronized (publicationLock) {
             this.publications.add(message);
         }
@@ -156,10 +151,6 @@ public class ClientManager implements CommunicationManager {
             byte[] messageBuffer;
             String paddedPublication;
             for (String publication: publicationsToDeliver) {
-                if(publication.length() > messageSize) {
-                    throw new IllegalArgumentException(
-                            "ClientManager tried to deliver publication violating protocol: wrong messageSize");
-                }
                 paddedPublication = this.protocol.padMessage(publication);
                 messageBuffer = paddedPublication.getBytes();
                 DatagramPacket packetToSend = new DatagramPacket(

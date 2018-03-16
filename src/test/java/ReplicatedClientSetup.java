@@ -44,6 +44,5 @@ public class ReplicatedClientSetup extends ReplicatedServerSetup {
         for(Client client: uninitializedClients) {
             client.terminateClient();
         }
-        System.out.println("derp");
     }
 }

@@ -99,6 +99,8 @@ class Dispatcher {
     }
 
     public boolean retrieve(String IP, int Port, String queryMessage) {
+        System.out.println("Going straight through dispatcher with message " + queryMessage);
+
         return createMessageTask(IP, Port, queryMessage, CommunicationManager.Call.RETRIEVE, true);
     }
 

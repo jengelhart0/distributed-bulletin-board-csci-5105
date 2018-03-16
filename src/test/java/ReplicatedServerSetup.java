@@ -18,7 +18,7 @@ public class ReplicatedServerSetup {
 
     String serverInterfaceName = "CommunicateTest";
     int numTestServers = 7;
-    String testServerIp = "localhost";
+    String testServerIp = "127.0.0.1";
 //    Protocol bulletinProtocol = new Protocol(
 //            new String[]{"messageId", "replyTo", "clientId"},
 //            new String[][]{
