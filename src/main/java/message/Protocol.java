@@ -1,11 +1,8 @@
 package message;
 
-import client.Client;
-
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -17,6 +14,7 @@ public class Protocol {
     private List<String> queryFields;
     private List<String[]> allowedFieldValues;
     private String delimiter;
+    private String controlDelimiter;
     private String wildcard;
     private int messageSize;
     private String emptyInternalFields;
@@ -25,6 +23,11 @@ public class Protocol {
 
     public Protocol(List<String> fields, List<String[]> allowedFieldValues,
                     String delimiter, String wildcard, int messageSize) {
+        this(fields, allowedFieldValues, delimiter, ":", wildcard, messageSize);
+    }
+
+    public Protocol(List<String> fields, List<String[]> allowedFieldValues,
+                    String delimiter, String controlDelimiter, String wildcard, int messageSize) {
         for(String field: fields) {
             if (field.equals("messageId") || field.equals("clientId")) {
                 throw new IllegalArgumentException("Fields 'messageId' and 'clientId' internally reserved.");
@@ -32,13 +35,13 @@ public class Protocol {
         }
 
         this.delimiter = delimiter;
+        this.controlDelimiter = controlDelimiter;
         this.messageSize = messageSize;
         this.wildcard = wildcard;
 
         combineInternalAndExternalFields(fields, allowedFieldValues);
 
     }
-
     private void combineInternalAndExternalFields(List<String> externalFields,
                                                   List<String[]> allowedExternalFieldValues) {
         this.numExternalFields = externalFields.size();
@@ -68,6 +71,10 @@ public class Protocol {
         return message.split(this.delimiter, -1);
     }
 
+    public String[] controlParse(String message) {
+        return message.split(this.controlDelimiter, -1);
+    }
+
     public int getMessageSize() {
         return this.messageSize;
     }
@@ -75,6 +82,8 @@ public class Protocol {
     public String getDelimiter() {
         return this.delimiter;
     }
+
+    public String getControlDelimiter() { return this.controlDelimiter; }
 
     public String getWildcard() {
         return wildcard;
@@ -85,7 +94,7 @@ public class Protocol {
     }
 
     public boolean validate(String message, boolean isSubscription) {
-        if(isClientIdMessage(message)) {
+        if(isControlMessage(message)) {
             return true;
         }
 
@@ -110,11 +119,27 @@ public class Protocol {
         return padder.toString();
     }
 
-    boolean isClientIdMessage(String message) {
-        String[] parsed = parse(message);
+    public String stripPadding(String paddedMessage) {
+        return paddedMessage.replaceAll("^\\s+", "").replaceAll("\\s+$", "");
+    }
+
+    boolean isControlMessage(String message) {
+        return isClientIdMessage(message) || isRetrieveNotification(message);
+    }
+
+    private boolean isClientIdMessage(String message) {
+        String[] parsed = controlParse(message);
         return parsed.length > 1
                 && parsed[0].equals("clientId")
                 && !parsed[1].isEmpty();
+    }
+
+    public boolean isRetrieveNotification(String message) {
+        String[] parsed = controlParse(message);
+        return parsed.length == 3
+                && parsed[0].equals("retrieveNotification")
+                && !parsed[1].equals("")
+                && !parsed[2].equals("");
     }
 
     private boolean isBasicallyValid(String message) throws IllegalArgumentException {
@@ -150,9 +175,9 @@ public class Protocol {
     }
 
     public String extractIdIfThisIsIdMessage(String message) {
-        if(isClientIdMessage(message)) {
+        if(isControlMessage(message)) {
             // client id message format: "clientId;<ID>" if ';' is delimiter
-            return parse(message)[1];
+            return controlParse(message)[1];
         }
         return "";
     }
@@ -174,7 +199,7 @@ public class Protocol {
         String[] requested = Arrays.copyOfRange(parsed, numInternalFields, parsed.length);
         StringBuilder result = new StringBuilder(requested[0]);
         for (int i = 1; i < requested.length; i++) {
-            result.append(delimiter + requested[i]);
+            result.append(delimiter).append(requested[i]);
         }
         return result.toString();
     }

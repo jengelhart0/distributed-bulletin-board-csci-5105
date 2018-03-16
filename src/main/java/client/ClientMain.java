@@ -69,18 +69,25 @@ public class ClientMain {
         Thread.sleep(3000);
 
         String resultMessage;
-        if(testSingleSubscriberSinglePublisher(remoteServerIp, protocol, publications1, subscriptions1, expected1)) {
-            resultMessage = "Test single subscriber, single publisher PASSED.";
-        } else {
-            resultMessage = "Test single subscriber, single publisher FAILED.";
-        }
-        System.out.println(resultMessage);
+//        if(testSingleSubscriberSinglePublisher(remoteServerIp, protocol, publications1, subscriptions1, expected1)) {
+//            resultMessage = "Test single subscriber, single publisher PASSED.";
+//        } else {
+//            resultMessage = "Test single subscriber, single publisher FAILED.";
+//        }
+//        System.out.println(resultMessage);
+//
+//
+//        if(testSinglePublishMultipleSubscribers(remoteServerIp, 10, protocol, publications1, subscriptions1, expected1)) {
+//            resultMessage = "Test single publisher, multiple subscribers PASSED.";
+//        } else {
+//            resultMessage = "Test single publisher, multiple subscribers FAILED.";
+//        }
+//        System.out.println(resultMessage);
 
-
-        if(testSinglePublishMultipleSubscribers(remoteServerIp, 10, protocol, publications1, subscriptions1, expected1)) {
-            resultMessage = "Test single publisher, multiple subscribers PASSED.";
+        if(testSingleRetrieve(remoteServerIp, protocol)) {
+            resultMessage = "Test single retrieve PASSED.";
         } else {
-            resultMessage = "Test single publisher, multiple subscribers FAILED.";
+            resultMessage = "Test single retrieve FAILED.";
         }
         System.out.println(resultMessage);
 
@@ -92,7 +99,7 @@ public class ClientMain {
         System.out.println(resultMessage);
 
         String[] invalidPublications =
-                {";;;invalidContents1", "Spurts;Me;Reuters;wrongType", "Entertainment;Someone;Reuters;;;",
+                {"Spurts;Me;Reuters;wrongType", "Entertainment;Someone;Reuters;;;",
                         ";;;", "Entertainment:test:test:test"};
 
         if(testInvalid(invalidPublications, protocol, false)) {
@@ -103,7 +110,7 @@ public class ClientMain {
         System.out.println(resultMessage);
 
         String[] invalidSubscriptions =
-                {";;;invalidContents1", ";;;", "Teknology;;;", ";stillNoContentsAllowed;;invalidContents2", "this;isn't;allowed;;"};
+                {";;;invalidContents1", "Teknology;;;", ";stillNoContentsAllowed;;invalidContents2", "this;isn't;allowed;;"};
 
         if(testInvalid(invalidSubscriptions, protocol, true)) {
             resultMessage = "Test invalid subscriptions PASSED.";
@@ -112,17 +119,18 @@ public class ClientMain {
         }
         System.out.println(resultMessage);
 
-        if(testLeave(remoteServerIp)) {
-            System.out.println(resultMessage);
-        } else {
-            System.out.println(resultMessage);
-        }
         if(testUnsubscribe(protocol, remoteServerIp)) {
             resultMessage = "Test unsubscribe PASSED.";
         } else {
             resultMessage = "Test unsubscribe FAILED.";
         }
         System.out.println(resultMessage);
+
+        if(testLeave(remoteServerIp)) {
+            System.out.println("Test leave PASSED.");
+        } else {
+            System.out.println("Test leave FAILED.");
+        }
 
     }
 
@@ -140,6 +148,26 @@ public class ClientMain {
         for (String publication : publications) {
             client.publish(new Message(protocol, publication, false));
         }
+    }
+
+    private static boolean testSingleRetrieve(String remoteServerIp, Protocol protocol) throws IOException, NotBoundException, InterruptedException {
+
+        int listenPort = 8888;
+
+        Client publisher = createNewClient(remoteServerIp, listenPort++);
+        String[] publications = new String[]{"Sports;;;testing retrieve 1"};
+        makePublications(publications, protocol, publisher);
+
+        Client retriever = createNewClient(remoteServerIp, listenPort);
+
+        List<Message> receivedMessages = retriever.retrieve(new Message(protocol, "Sports;;;", true));
+
+        boolean passed = validateReceivedMessages(receivedMessages, publications, protocol);
+
+        retriever.terminateClient();
+        publisher.terminateClient();
+
+        return passed;
     }
 
     private static boolean testSingleSubscriberSinglePublisher(String remoteServerIp, Protocol protocol, String[] publications,

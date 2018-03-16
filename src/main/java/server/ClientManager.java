@@ -45,7 +45,7 @@ public class ClientManager implements CommunicationManager {
     public Runnable task(Message message, MessageStore store, Call call) {
         switch(call) {
             case RETURN_CLIENT_ID_TO_CLIENT:
-                return () -> deliverClientId(message);
+                return () -> deliverControlMessage(message);
             case SUBSCRIBE:
                 return () -> subscribe(message);
             case PUBLISH:
@@ -61,9 +61,9 @@ public class ClientManager implements CommunicationManager {
         }
     }
     @Override
-    public void deliverClientId(Message clientIdMessage) {
-//        System.out.println("Delivering client id to " + clientIp + ", " + clientPort);
-        deliverPublication(clientIdMessage.asRawMessage(), protocol.getMessageSize());
+    public void deliverControlMessage(Message controlMessage) {
+//        System.out.println("Delivering control message to " + clientIp + ", " + clientPort);
+        deliverPublication(controlMessage.asRawMessage(), protocol.getMessageSize());
     }
 
 //    private String extractClientId(Message clientIdMessage) {
@@ -99,7 +99,18 @@ public class ClientManager implements CommunicationManager {
 
     @Override
     public void retrieve(Message queryMessage, MessageStore store) {
-        System.out.println("Unimplemented retrieve() called in ClientManager.");
+        Set<String> toDeliver = getSingleQueryMatches(queryMessage, store);
+        int numRetrieved = toDeliver.size();
+
+        String strippedQuery = protocol.stripPadding(queryMessage.asRawMessage());
+
+        String retrieveNotification = "retrieveNotification"
+                + protocol.getControlDelimiter()
+                + strippedQuery
+                + protocol.getControlDelimiter()
+                + numRetrieved;
+        deliverControlMessage(new Message(protocol, retrieveNotification, true));
+        deliverPublications(toDeliver, protocol.getMessageSize());
     }
 
     @Override
@@ -108,6 +119,11 @@ public class ClientManager implements CommunicationManager {
             this.publications.add(message);
         }
         store.publish(message);
+    }
+
+    private Set<String> getSingleQueryMatches(Message queryMessage, MessageStore store) {
+        Message[] singleQuery = new Message[]{queryMessage};
+        return getSubscriptionMatches(singleQuery, store);
     }
 
     @Override
@@ -121,9 +137,7 @@ public class ClientManager implements CommunicationManager {
             }
 
             Set<String> toDeliver = getSubscriptionMatches(subscriptionsToMatch, store);
-
-            int messageSize = this.protocol.getMessageSize();
-            deliverPublications(toDeliver, messageSize);
+            deliverPublications(toDeliver, protocol.getMessageSize());
         }
     }
 

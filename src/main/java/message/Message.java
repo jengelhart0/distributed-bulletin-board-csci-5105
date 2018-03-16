@@ -14,7 +14,7 @@ public class Message {
     public Message(Protocol protocol, String rawMessage, boolean isSubscription) {
         this.protocol = protocol;
         this.isSubscription = isSubscription;
-        if (!isClientIdMessage(rawMessage)) {
+        if (!isControlMessage(rawMessage)) {
             setProcessedMessage(rawMessage, protocol);
             if (!validate(isSubscription)) {
                 throw new IllegalArgumentException("Was an invalid message: " + asString);
@@ -23,7 +23,6 @@ public class Message {
         } else {
             this.asString = protocol.padMessage(rawMessage);
         }
-
     }
 
     private void setProcessedMessage(String rawMessage, Protocol protocol) {
@@ -102,11 +101,12 @@ public class Message {
         this.query.refreshAccessOffsets();
     }
 
-    private boolean isClientIdMessage(String message) {
-        return protocol.isClientIdMessage(message);
+    private boolean isControlMessage(String message) {
+        return protocol.isControlMessage(message);
     }
 
     public String extractIdIfThisIsIdMessage() {
         return protocol.extractIdIfThisIsIdMessage(withoutInternalFields());
     }
+
 }

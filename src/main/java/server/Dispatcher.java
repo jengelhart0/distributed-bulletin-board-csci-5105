@@ -86,7 +86,7 @@ class Dispatcher {
      }
 
     public boolean returnClientIdToClient(String IP, int Port, String clientId) {
-        String clientIdMessage = "clientId" + protocol.getDelimiter() + clientId;
+        String clientIdMessage = "clientId" + protocol.getControlDelimiter() + clientId;
         return createMessageTask(IP, Port, clientIdMessage, CommunicationManager.Call.RETURN_CLIENT_ID_TO_CLIENT, false);
     }
 

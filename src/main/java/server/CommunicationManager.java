@@ -11,7 +11,7 @@ public interface CommunicationManager {
     }
 
     Runnable task(Message message, MessageStore store, Call call);
-    void deliverClientId(Message clientIdMessage);
+    void deliverControlMessage(Message controlMessage);
     void subscribe(Message message);
     void unsubscribe(Message message);
     void retrieve(Message queryMessage, MessageStore store);

@@ -14,29 +14,26 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class ClientListener extends Listener {
-    private static final Logger LOGGER = Logger.getLogger( ClientListener.class.getName() );
+    private static final Logger LOGGER = Logger.getLogger(ClientListener.class.getName());
+
+    private FeedManager feedManager;
 
     private Protocol protocol;
-    private List<Message> messageFeed;
+
+    private final Lock idReceivedByListenerLock;
+    private final Condition idHasBeenSet;
     private String receivedClientId;
-    private Lock idReceivedByListenerLock;
-    private Condition idHasBeenSet;
 
-
-    ClientListener(Protocol protocol, Lock idReceivedByListenerLock, Condition idHasBeenSet) {
+    ClientListener(Protocol protocol, Lock idReceivedByListenerLock, Condition idHasBeenSet,
+                   Lock pendingQueryLock, Condition matchesForPendingQueryReceived) {
         super();
         this.protocol = protocol;
-        this.messageFeed = Collections.synchronizedList(new LinkedList<>());
         this.receivedClientId = null;
         this.idReceivedByListenerLock = idReceivedByListenerLock;
         this.idHasBeenSet = idHasBeenSet;
-    }
 
-    List<Message> getCurrentMessageFeed() {
-        List<Message> feedCopy = Collections.synchronizedList(new LinkedList<>());
-        feedCopy.addAll(this.messageFeed);
-        this.messageFeed.clear();
-        return feedCopy;
+        this.feedManager = new FeedManager(
+                protocol, new QueryMatcher(protocol, pendingQueryLock, matchesForPendingQueryReceived));
     }
 
     String getReceivedClientId() {
@@ -55,17 +52,16 @@ public class ClientListener extends Listener {
 
         DatagramPacket packetToReceive = new DatagramPacket(new byte[messageSize], messageSize);
         try {
-            while(shouldThreadContinue()) {
+            while (shouldThreadContinue()) {
 //                System.out.println("Client about to wait for message;");
                 Message newMessage = getMessageFromRemote(packetToReceive);
 //                System.out.println("Client received message" + newMessage.asRawMessage());
 //                System.out.println("\tChecking if received message is client id message  " + newMessage.asRawMessage());
                 String possibleClientId = newMessage.extractIdIfThisIsIdMessage();
-                if(!possibleClientId.isEmpty()) {
+                if (!possibleClientId.isEmpty()) {
                     setReceivedIdAndSignalClient(possibleClientId);
-
-                } else {
-                    this.messageFeed.add(newMessage);
+                } else if(!feedManager.handleRetrieveNotificationIfThisIsOne(newMessage)) {
+                    feedManager.handle(newMessage);
                 }
             }
         } catch (SocketException e) {
@@ -78,8 +74,7 @@ public class ClientListener extends Listener {
         } catch (IOException | IllegalArgumentException e) {
             LOGGER.log(Level.WARNING, "ClientListener failed to receive incoming message: " + e.toString());
             e.printStackTrace();
-        }
-        finally {
+        } finally {
             closeListenSocket();
         }
     }
@@ -99,6 +94,18 @@ public class ClientListener extends Listener {
         } finally {
             idReceivedByListenerLock.unlock();
         }
+    }
+
+    List<Message> consumeCurrentMessageFeed() {
+        return feedManager.consumeCurrentMessageFeed();
+    }
+
+    void addPendingQueryToMatch(String query) {
+        feedManager.addPendingQueryToMatch(query);
+    }
+
+    List<Message> consumeMatchesIfAllReceivedFor(String query) {
+        return feedManager.consumeMatchesIfAllReceivedFor(query);
     }
 }
 

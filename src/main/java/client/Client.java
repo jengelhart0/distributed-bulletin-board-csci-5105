@@ -42,6 +42,9 @@ public class Client implements Runnable {
     private final Lock idReceivedByListenerLock = new ReentrantLock();
     private final Condition idHasBeenSet = idReceivedByListenerLock.newCondition();
 
+    private final Lock pendingQueryLock = new ReentrantLock();
+    private final Condition matchesForPendingQueryReceived = pendingQueryLock.newCondition();
+
     public Client(Protocol protocol, int listenPort) throws IOException, NotBoundException {
         this.protocol = protocol;
         this.localAddress = InetAddress.getLocalHost();
@@ -55,7 +58,8 @@ public class Client implements Runnable {
     }
 
     private void startMessageListener() throws SocketException {
-        this.listener = new ClientListener(this.protocol, idReceivedByListenerLock, idHasBeenSet);
+        this.listener = new ClientListener(this.protocol, idReceivedByListenerLock, idHasBeenSet,
+                pendingQueryLock, matchesForPendingQueryReceived);
         this.listener.listenAt(this.listenPort, this.localAddress);
         Thread listenerThread = new Thread(this.listener);
         listenerThread.start();
@@ -106,14 +110,25 @@ public class Client implements Runnable {
         return communicateWithRemote(subscription, RemoteMessageCall.UNSUBSCRIBE);
     }
 
-    public List<String> retrieve(Message queryMessage) {
-        if(communicateWithRemote(queryMessage, RemoteMessageCall.RETRIEVE)) {
-
-        } else {
-            LOGGER.log(Level.SEVERE, "Attempt to retrieve from server failed");
-            return null;
+    public List<Message> retrieve(Message queryMessage) throws InterruptedException {
+        String query = queryMessage.asRawMessage();
+        pendingQueryLock.lock();
+        try {
+            listener.addPendingQueryToMatch(query);
+            if(communicateWithRemote(queryMessage, RemoteMessageCall.RETRIEVE)) {
+                List<Message> matches = listener.consumeMatchesIfAllReceivedFor(query);
+                while(matches == null) {
+                    matchesForPendingQueryReceived.await();
+                    matches = listener.consumeMatchesIfAllReceivedFor(query);
+                }
+                return matches;
+            } else {
+                LOGGER.log(Level.SEVERE, "Attempt to retrieve from server failed");
+                return null;
+            }
+        } finally {
+            pendingQueryLock.unlock();
         }
-        return null;
     }
 
     private boolean ping() throws RemoteException {
@@ -250,7 +265,8 @@ public class Client implements Runnable {
     }
 
     public List<Message> getCurrentMessageFeed() {
-        return this.listener.getCurrentMessageFeed();
+
+        return this.listener.consumeCurrentMessageFeed();
     }
 
     public String getId() {
