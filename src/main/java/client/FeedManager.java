@@ -36,9 +36,12 @@ public class FeedManager {
         String messageString = newMessage.asRawMessage();
         String[] parsed = protocol.controlParse(messageString);
         if(protocol.isRetrieveNotification(messageString)) {
-            String query = parsed[1];
+            String query = protocol.padMessage(parsed[1]);
             int numIncoming = Integer.parseInt(protocol.stripPadding(parsed[2]));
             queryMatcher.setNumIncomingFor(query, numIncoming);
+            if (numIncoming == 0) {
+                queryMatcher.notifyNoResults(query);
+            }
             return true;
         }
         return false;

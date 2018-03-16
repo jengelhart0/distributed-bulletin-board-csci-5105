@@ -3,6 +3,7 @@ package client;
 import message.Message;
 import message.Protocol;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,6 +30,10 @@ public class QueryMatcher {
 
     void setNumIncomingFor(String query, int numIncoming) {
         numIncomingForQuery.put(query, numIncoming);
+    }
+
+    void notifyNoResults(String query) {
+        signalIfAllMatchesReceivedFor(query);
     }
 
     boolean addIfMatchesAQuery(String message) {
@@ -61,10 +66,11 @@ public class QueryMatcher {
 
     List<Message> consumeMatchesIfAllReceivedFor(String query) {
         if(allMatchesReceivedFor(query)) {
-            List<Message> allMatches = new LinkedList<>();
+            List<Message> allMatches = Collections.synchronizedList(new LinkedList<>());
             for(String match: queryMatches.get(query)) {
                 allMatches.add(new Message(protocol, match, false));
             }
+            queryMatches.put(query, Collections.synchronizedList(new LinkedList<>()));
             return allMatches;
         }
         return null;
@@ -86,7 +92,8 @@ public class QueryMatcher {
     }
 
     public void addPendingQuery(String query) {
-        queryMatches.put(query, new LinkedList<>());
+        queryMatches.put(query, Collections.synchronizedList(new LinkedList<>()));
         numReceivedForQuery.put(query, 0);
+        numIncomingForQuery.put(query, -1);
     }
 }

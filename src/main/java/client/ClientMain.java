@@ -69,26 +69,48 @@ public class ClientMain {
         Thread.sleep(3000);
 
         String resultMessage;
-//        if(testSingleSubscriberSinglePublisher(remoteServerIp, protocol, publications1, subscriptions1, expected1)) {
-//            resultMessage = "Test single subscriber, single publisher PASSED.";
-//        } else {
-//            resultMessage = "Test single subscriber, single publisher FAILED.";
-//        }
-//        System.out.println(resultMessage);
-//
-//
-//        if(testSinglePublishMultipleSubscribers(remoteServerIp, 10, protocol, publications1, subscriptions1, expected1)) {
-//            resultMessage = "Test single publisher, multiple subscribers PASSED.";
-//        } else {
-//            resultMessage = "Test single publisher, multiple subscribers FAILED.";
-//        }
-//        System.out.println(resultMessage);
+        if(testSingleSubscriberSinglePublisher(remoteServerIp, protocol, publications1, subscriptions1, expected1)) {
+            resultMessage = "Test single subscriber, single publisher PASSED.";
+        } else {
+            resultMessage = "Test single subscriber, single publisher FAILED.";
+        }
+        System.out.println(resultMessage);
+
+
+        if(testSinglePublishMultipleSubscribers(remoteServerIp, 10, protocol, publications1, subscriptions1, expected1)) {
+            resultMessage = "Test single publisher, multiple subscribers PASSED.";
+        } else {
+            resultMessage = "Test single publisher, multiple subscribers FAILED.";
+        }
+        System.out.println(resultMessage);
 
         if(testSingleRetrieve(remoteServerIp, protocol)) {
             resultMessage = "Test single retrieve PASSED.";
         } else {
             resultMessage = "Test single retrieve FAILED.";
         }
+        System.out.println(resultMessage);
+
+
+        String[] retrievalPublications1 =
+                {"Science;retrieval test mult;UMN;content 1 is great!", "Sports;Me;retrieval test mult;content2",
+                        "Lifestyle;retrieve;YourFavoriteMagazine;retrieval test mult cont", "Entertainment;retrieval test mult;Reuters;content4",
+                        "Business;Jane;retrieving ;content5"};
+
+        String[] retrievals1 =
+                {"Science;retrieval test mult;UMN;", "Sports;Me;retrieval test mult;", "Lifestyle;retrieve;YourFavoriteMagazine;",
+                        "Entertainment;retrieval test mult;Reuters;", "Business;Jane;retrieving ;", ";Jack;empty retrieve;"};
+
+        String[] retrievalExpected1 =
+                {retrievalPublications1[0], retrievalPublications1[1], retrievalPublications1[2], retrievalPublications1[3],
+                        retrievalPublications1[4]};
+
+        if(testMultipleRetrieve(remoteServerIp, 10, protocol, retrievalPublications1, retrievals1, retrievalExpected1)) {
+            resultMessage = "Test multiple retrieve PASSED.";
+        } else {
+            resultMessage = "Test multiple retrieve FAILED.";
+        }
+
         System.out.println(resultMessage);
 
         if(testHighLoad(remoteServerIp, 300, protocol, publications1, subscriptions1)) {
@@ -155,12 +177,14 @@ public class ClientMain {
         int listenPort = 8888;
 
         Client publisher = createNewClient(remoteServerIp, listenPort++);
-        String[] publications = new String[]{"Sports;;;testing retrieve 1"};
+        String[] publications = new String[]{"Sports;singleRetrieve;;testing retrieve 1"};
         makePublications(publications, protocol, publisher);
+
+        Thread.sleep(3000);
 
         Client retriever = createNewClient(remoteServerIp, listenPort);
 
-        List<Message> receivedMessages = retriever.retrieve(new Message(protocol, "Sports;;;", true));
+        List<Message> receivedMessages = retriever.retrieve(new Message(protocol, "Sports;singleRetrieve;;", true));
 
         boolean passed = validateReceivedMessages(receivedMessages, publications, protocol);
 
@@ -168,6 +192,40 @@ public class ClientMain {
         publisher.terminateClient();
 
         return passed;
+    }
+
+    private static boolean testMultipleRetrieve(String remoteServerIp, int numRetrievers, Protocol protocol,
+                                                String[] publications, String[] retrievals, String[] expected) throws IOException, NotBoundException, InterruptedException {
+
+        int listenPort = 19888;
+
+        List<Client> retrievers = new LinkedList<>();
+
+        for (int i = 0; i < numRetrievers; i++) {
+            Client newRetriever = createNewClient(remoteServerIp, listenPort++);
+            retrievers.add(newRetriever);
+        }
+
+        Client publisher = createNewClient(remoteServerIp, listenPort);
+        makePublications(publications, protocol, publisher);
+        publisher.terminateClient();
+
+        Thread.sleep(4000);
+
+        boolean allPassed = true;
+        for (Client retriever : retrievers) {
+            List<Message> resultRetrievals = new LinkedList<>();
+            for(String retrieval: retrievals) {
+                resultRetrievals.addAll(retriever.retrieve(new Message(protocol, retrieval, true)));
+            }
+            if (!validateReceivedMessages(resultRetrievals, expected, protocol)) {
+                allPassed = false;
+                retriever.terminateClient();
+                break;
+            }
+            retriever.terminateClient();
+        }
+        return allPassed;
     }
 
     private static boolean testSingleSubscriberSinglePublisher(String remoteServerIp, Protocol protocol, String[] publications,
