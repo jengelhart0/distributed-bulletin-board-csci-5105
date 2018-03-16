@@ -17,7 +17,7 @@ public class ReplicatedServerSetup {
     List<Integer> serverPorts;
 
     String serverInterfaceName = "CommunicateTest";
-    int numTestServers = 7;
+    int numTestServers = 5;
     String testServerIp = "127.0.0.1";
 //    Protocol bulletinProtocol = new Protocol(
 //            new String[]{"messageId", "replyTo", "clientId"},
@@ -35,7 +35,7 @@ public class ReplicatedServerSetup {
             Collections.singletonList(new String[]{""}),
             ";",
             "",
-            512);
+            64);
 
     @Before
     public void setUpReplicatedServers() throws UnknownHostException, InterruptedException {

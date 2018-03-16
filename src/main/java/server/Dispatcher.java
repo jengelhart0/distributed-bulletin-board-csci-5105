@@ -85,6 +85,10 @@ class Dispatcher {
         return false;
      }
 
+    void setClientIdFor(String ip, int port, String clientId) {
+        getManagerFor(ip, port).setClientId(clientId);
+    }
+
     public boolean returnClientIdToClient(String IP, int Port, String clientId) {
         String clientIdMessage = "clientId" + protocol.getControlDelimiter() + clientId;
         return createMessageTask(IP, Port, clientIdMessage, CommunicationManager.Call.RETURN_CLIENT_ID_TO_CLIENT, false);
@@ -99,7 +103,7 @@ class Dispatcher {
     }
 
     public boolean retrieve(String IP, int Port, String queryMessage) {
-        System.out.println("Going straight through dispatcher with message " + queryMessage);
+//        System.out.println("Going straight through dispatcher with message " + queryMessage);
 
         return createMessageTask(IP, Port, queryMessage, CommunicationManager.Call.RETRIEVE, true);
     }

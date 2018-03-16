@@ -24,6 +24,7 @@ public class ReadYourWritesPolicy implements ConsistencyPolicy {
         if(clientId != null && previousServer != null) {
             String retrieveAllByClientQuery = protocol.getRetrieveAllByClientQuery(clientId);
             List<Message> retrieved = server.retrieveFromPeer(previousServer, new Message(protocol, retrieveAllByClientQuery, true));
+            System.out.println(this.server.getThisServersIpPortString() + " retrieved: " + retrieved.toString() + " Adding to store");
             for(Message byClient: retrieved) {
                 dispatcher.publish(byClient.asRawMessage(), clientIp, clientPort);
             }

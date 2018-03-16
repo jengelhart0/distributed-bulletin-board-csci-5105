@@ -92,6 +92,13 @@ class RegistryServerLiaison {
     }
 
     public Set<String> getListOfServers() throws IOException {
+//        Set<String> dummyList = new HashSet<>();
+//        dummyList.add("127.0.0.1;1099");
+//        dummyList.add("127.0.0.1;1100");
+//        dummyList.add("127.0.0.1;1101");
+//        dummyList.add("127.0.0.1;1102");
+//        dummyList.add("127.0.0.1;1103");
+//        return dummyList;
 
         int listSizeinBytes = this.serverListSize;
         DatagramPacket registryPacket = new DatagramPacket(new byte[listSizeinBytes], listSizeinBytes);
@@ -110,7 +117,7 @@ class RegistryServerLiaison {
                 .split(registryMessageDelimiter);
 
         if(rawServerList.length == 1) {
-            System.out.println("This was only server in list from GetList");
+//            System.out.println("This was only server in list from GetList");
         }
 
         Set<String> results = new HashSet<>();

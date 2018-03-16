@@ -17,5 +17,6 @@ public interface CommunicationManager {
     void retrieve(Message queryMessage, MessageStore store);
     void publish(Message message, MessageStore store);
     void pullSubscriptionMatchesFromStore(MessageStore store) throws IOException;
+    void setClientId(String clientId);
     void clientLeft();
 }

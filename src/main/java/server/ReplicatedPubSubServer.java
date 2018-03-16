@@ -228,6 +228,9 @@ public class ReplicatedPubSubServer implements Communicate {
     @Override
     public boolean Join(String IP, int Port, String existingClientId, String previousServer)
             throws NotBoundException, IOException, InterruptedException {
+
+        System.out.println("Joining client with id " + existingClientId + " to " + this.port);
+
         synchronized (numClientsLock) {
             if(numClients >= maxClients) {
                 LOGGER.log(Level.SEVERE, "Maximum clients exceeded for server " + getThisServersIpPortString());
@@ -239,9 +242,13 @@ public class ReplicatedPubSubServer implements Communicate {
         if(existingClientId == null) {
 //            System.out.println(getThisServersIpPortString() + " going to getCoordinator() in Join() for new client ID");
             String newClientId = peerListManager.getCoordinator().requestNewClientId();
-            return dispatcher.returnClientIdToClient(IP, Port, newClientId);
+            dispatcher.setClientIdFor(IP, Port, newClientId);
+            dispatcher.returnClientIdToClient(IP, Port, newClientId);
+        } else {
+            System.out.println("Need to enforce consistency");
+            dispatcher.setClientIdFor(IP, Port, existingClientId);
+            consistencyPolicy.enforceOnJoin(IP, Port, existingClientId, previousServer);
         }
-        consistencyPolicy.enforceOnJoin(IP, Port, existingClientId, previousServer);
         return true;
     }
 
@@ -269,13 +276,14 @@ public class ReplicatedPubSubServer implements Communicate {
 
     @Override
     public boolean Retrieve(String IP, int Port, String queryMessage) throws RemoteException {
-        System.out.println("Going through pubsubserver to dispatcher with message " + queryMessage);
+//        System.out.println("Going through pubsubserver to dispatcher with message " + queryMessage);
         return dispatcher.retrieve(IP, Port, queryMessage);
     }
 
     @Override
     public boolean Publish(String Message, String IP, int Port) throws RemoteException {
         // TODO: need to add messageId/clientId
+//        System.out.println("Trying to add message " + Message + " to store, server port " + this.port);
         return protocol.areInternalFieldsBlank(Message) && dispatcher.publish(Message, IP, Port);
     }
 

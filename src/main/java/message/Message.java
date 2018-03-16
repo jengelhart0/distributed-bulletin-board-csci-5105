@@ -109,12 +109,17 @@ public class Message {
         return protocol.extractIdIfThisIsIdMessage(withoutInternalFields());
     }
 
-    public void insertClientId(String clientId) {
-        String withId = protocol.insertClientId(asString, clientId);
-        if(withId == null) {
-            throw new IllegalArgumentException("Tried to insert client id in message whose internal fields weren't blank.");
+    public void ensureInternalsExistAndRegenerateQuery(String clientId) {
+        //TODO: need to change this to insert both client AND message ids
+
+        if(protocol.areInternalFieldsBlank(asString)) {
+            String withId = protocol.insertClientId(asString, clientId);
+            if (withId == null) {
+                throw new IllegalArgumentException("Tried to insert client id in message whose internal fields weren't blank.");
+            }
+            asString = withId;
+            setQuery();
         }
-        asString = withId;
     }
 
 }

@@ -101,7 +101,8 @@ public class ClientManager implements CommunicationManager {
     public void retrieve(Message queryMessage, MessageStore store) {
         Set<String> toDeliver = getSingleQueryMatches(queryMessage, store);
         int numRetrieved = toDeliver.size();
-
+        System.out.println("Retrieving query for client " + clientId + " result " + queryMessage.asRawMessage() + " results:");
+        System.out.println(toDeliver.toString());
         String retrieveNotification = protocol.buildRetrieveNotification(queryMessage.asRawMessage(), numRetrieved);
         deliverControlMessage(new Message(protocol, retrieveNotification, true));
         deliverPublications(toDeliver, protocol.getMessageSize());
@@ -109,7 +110,9 @@ public class ClientManager implements CommunicationManager {
 
     @Override
     public void publish(Message message, MessageStore store) {
-        message.insertClientId(clientId);
+        System.out.println(clientId);
+        //TODO: need to change this to insert both client AND message ids
+        message.ensureInternalsExistAndRegenerateQuery(clientId);
         synchronized (publicationLock) {
             this.publications.add(message);
         }
@@ -134,6 +137,11 @@ public class ClientManager implements CommunicationManager {
             Set<String> toDeliver = getSubscriptionMatches(subscriptionsToMatch, store);
             deliverPublications(toDeliver, protocol.getMessageSize());
         }
+    }
+
+    @Override
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
     }
 
     private Set<String> getSubscriptionMatches(Message[] subscriptionsToMatch, MessageStore store) {

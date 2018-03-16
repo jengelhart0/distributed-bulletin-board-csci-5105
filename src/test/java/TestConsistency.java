@@ -25,15 +25,15 @@ public class TestConsistency extends ReplicatedClientSetup {
 //        makeAllLeave(singleClientArray);
 //    }
 
-//    @Test
-//    public void testMultipleClientsMoveAmongServers() throws RemoteException, NotBoundException  {
-//        List<Integer> serverPorts = new ArrayList<>(replicatedServers.keySet());
-//        makeAllJoinRandomServers(uninitializedClients, serverPorts);
-//        makeAllLeave(uninitializedClients);
-//        // move to different servers
-//        makeAllJoinRandomServers(uninitializedClients, serverPorts);
-//        makeAllLeave(uninitializedClients);
-//    }
+    @Test
+    public void testMultipleClientsMoveAmongServers() throws RemoteException, NotBoundException  {
+        List<Integer> serverPorts = new ArrayList<>(replicatedServers.keySet());
+        makeAllJoinRandomServers(uninitializedClients, serverPorts);
+        makeAllLeave(uninitializedClients);
+        // move to different servers
+        makeAllJoinRandomServers(uninitializedClients, serverPorts);
+        makeAllLeave(uninitializedClients);
+    }
 
     private void makeAllJoinRandomServers(Client[] clients, List<Integer> serverPorts)
             throws RemoteException, NotBoundException {
@@ -64,13 +64,14 @@ public class TestConsistency extends ReplicatedClientSetup {
 //        Thread.sleep(5000);
 
         testClient.initializeRemoteCommunication(testServerIp, serverPorts.get(1), serverInterfaceName);
-        Thread.sleep(2000);
+        Thread.sleep(1000);
+        System.out.println("testClient is at " + testClient.getId());
         List<Message> results = testClient.retrieve(
                 new Message(testProtocol1, testProtocol1.getRetrieveAllByClientQuery(testClient.getId()), true));
 
         boolean found = false;
         for(Message message: results) {
-            if(message.asRawMessage().equals(testMessage)) {
+            if(testProtocol1.stripPadding(message.withoutInternalFields()).equals(testMessage)) {
                 found = true;
             }
         }

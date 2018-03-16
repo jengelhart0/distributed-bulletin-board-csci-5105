@@ -99,7 +99,8 @@ class PeerListManager {
         // TODO: won't work until we can get accurate port back from registry server getList (currently storing heartbeatPort)!
         peers.remove(serverIp.getHostAddress() + registryServerLiaison.getDelimiter() + serverPort);
         joinDiscoveredPeers(peers);
-        leaveStalePeers(peers);
+        // TODO: add back in after testing??
+    //        leaveStalePeers(peers);
         findCoordinator();
     }
 
@@ -141,15 +142,15 @@ class PeerListManager {
         }
     }
 
-    private void leaveStalePeers(Set<String> peers) {
-        for(String server: clientsForReplicatedPeers.keySet()) {
-            if(!peers.contains(server)) {
-                System.out.println("leaveStalePeers: removing peer client " + server);
-                Client toRemove = clientsForReplicatedPeers.remove(server);
-                toRemove.terminateClient();
-            }
-        }
-    }
+//    private void leaveStalePeers(Set<String> peers) {
+//        for(String server: clientsForReplicatedPeers.keySet()) {
+//            if(!peers.contains(server)) {
+//                System.out.println("leaveStalePeers: removing peer client " + server);
+//                Client toRemove = clientsForReplicatedPeers.remove(server);
+//                toRemove.terminateClient();
+//            }
+//        }
+//    }
 
     private void findCoordinator() throws NotBoundException, IOException {
         Communicate newCoordinator = null;
