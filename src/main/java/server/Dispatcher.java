@@ -30,6 +30,10 @@ class Dispatcher {
         this.store = store;
         this.shouldRetrieveMatchesAutomatically = shouldRetrieveMatchesAutomatically;
         this.clientToClientManager = new ConcurrentHashMap<>();
+        // manages publications from clients connected to other servers
+        clientToClientManager.put(
+                "clientElsewhere" + protocol.getDelimiter() + "-1",
+                new ClientManager("clientElsewhere", -1, protocol));
     }
 
     void initialize() {
@@ -72,8 +76,10 @@ class Dispatcher {
     }
 
     public void addNewClient(String ip, int port) {
-        CommunicationManager newClientManager = new ClientManager(ip, port, this.protocol);
-        clientToClientManager.put(ServerUtils.getIpPortString(ip, port, protocol), newClientManager);
+        if(!clientToClientManager.containsKey(ServerUtils.getIpPortString(ip, port, protocol))) {
+            CommunicationManager newClientManager = new ClientManager(ip, port, this.protocol);
+            clientToClientManager.put(ServerUtils.getIpPortString(ip, port, protocol), newClientManager);
+        }
     }
 
     public boolean informManagerThatClientLeft(String ip, int port) {
@@ -138,8 +144,8 @@ class Dispatcher {
         }
     }
 
-    private CommunicationManager getManagerFor(String ip, int port) {
-        return clientToClientManager.get(ServerUtils.getIpPortString(ip, port, protocol));
+    CommunicationManager getManagerFor(String ip, int port) {
+        return clientToClientManager.getOrDefault(ServerUtils.getIpPortString(ip, port, protocol), null);
     }
 
     private void queueTaskFor(CommunicationManager manager, CommunicationManager.Call call, Message message) {

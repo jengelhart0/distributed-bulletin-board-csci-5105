@@ -215,6 +215,11 @@ class PeerListManager {
         }
     }
 
+    public boolean isCoordinator() throws IOException, NotBoundException {
+        return thisServer.getThisServersIpPortString()
+                .equals(getCoordinator().getThisServersIpPortString());
+    }
+
     public Set<String> getListOfServers() throws IOException {
         return registryServerLiaison.getListOfServers();
     }
@@ -242,6 +247,26 @@ class PeerListManager {
             throw new IllegalArgumentException("retrieveFromPeer: Tried to retrieve from a peer with no client in " +
                     "clientsForReplicatedPeers!");
         }
+    }
+
+    String getCoordinatorIp() throws IOException, NotBoundException {
+        String ip;
+
+        String ipPort = getCoordinator().getThisServersIpPortString();
+        String[] parsedIpPort = ipPort.split(protocol.getDelimiter());
+        ip = parsedIpPort[0];
+
+        return ip;
+    }
+
+    String getCoordinatorPort() throws IOException, NotBoundException {
+        String port;
+
+        String ipPort = getCoordinator().getThisServersIpPortString();
+        String[] parsedIpPort = ipPort.split(protocol.getDelimiter());
+        port = parsedIpPort[1];
+
+        return port;
     }
 
 }

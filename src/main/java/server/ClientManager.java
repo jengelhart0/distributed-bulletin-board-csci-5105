@@ -111,8 +111,8 @@ public class ClientManager implements CommunicationManager {
     @Override
     public void publish(Message message, MessageStore store) {
         System.out.println(clientId);
-        //TODO: need to change this to insert both client AND message ids
-        message.ensureInternalsExistAndRegenerateQuery(clientId);
+//        Removed, as this was put in consistency policy instead
+//        message.ensureInternalsExistAndRegenerateQuery(clientId);
         synchronized (publicationLock) {
             this.publications.add(message);
         }

@@ -284,7 +284,12 @@ public class ReplicatedPubSubServer implements Communicate {
     public boolean Publish(String Message, String IP, int Port) throws RemoteException {
         // TODO: need to add messageId/clientId
 //        System.out.println("Trying to add message " + Message + " to store, server port " + this.port);
-        return protocol.areInternalFieldsBlank(Message) && dispatcher.publish(Message, IP, Port);
+
+// Commented out because servers will be publishing to each other through peerClients, but messages will contain
+// original messageId/clientId
+//        return protocol.areInternalFieldsBlank(Message) && dispatcher.publish(Message, IP, Port);
+        return dispatcher.publish(Message, IP, Port);
+
     }
 
     @Override
@@ -322,6 +327,18 @@ public class ReplicatedPubSubServer implements Communicate {
 
     List<Message> retrieveFromPeer(String server, Message queryMessage) throws InterruptedException {
         return peerListManager.retrieveFromPeer(server, queryMessage);
+    }
+
+    boolean isCoordinator() throws IOException, NotBoundException {
+        return peerListManager.isCoordinator();
+    }
+
+    String getCoordinatorIp() throws IOException, NotBoundException {
+        return peerListManager.getCoordinatorIp();
+    }
+
+    String getCoordinatorPort() throws IOException, NotBoundException {
+        return peerListManager.getCoordinatorPort();
     }
 
 }

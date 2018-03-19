@@ -3,6 +3,8 @@ package server;
 import message.Message;
 import message.Protocol;
 
+import java.io.IOException;
+import java.rmi.NotBoundException;
 import java.util.List;
 
 public class ReadYourWritesPolicy implements ConsistencyPolicy {
@@ -19,7 +21,7 @@ public class ReadYourWritesPolicy implements ConsistencyPolicy {
 
     @Override
     public void enforceOnJoin(String clientIp, int clientPort, String existingClientId, String previousServer)
-            throws InterruptedException {
+            throws IOException, NotBoundException, InterruptedException {
         String clientId = protocol.stripPadding(existingClientId);
         if(clientId != null && previousServer != null) {
             String retrieveAllByClientQuery = protocol.getRetrieveAllByClientQuery(clientId);
@@ -30,4 +32,6 @@ public class ReadYourWritesPolicy implements ConsistencyPolicy {
             }
         }
     }
+
+
 }

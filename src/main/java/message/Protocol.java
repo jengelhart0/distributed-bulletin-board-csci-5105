@@ -224,11 +224,12 @@ public class Protocol {
         return message.toString();
     }
 
-    public String insertClientId(String message, String clientId) {
+    String insertInternals(String message, String messageId, String clientId) {
         if(!areInternalFieldsBlank(message)) {
             return null;
         }
         String[] parsed = parse(message);
+        parsed[0] = messageId;
         parsed[1] = clientId;
 
         StringBuilder result = new StringBuilder();
@@ -250,5 +251,10 @@ public class Protocol {
                 + getControlDelimiter()
                 + numRetrieved;
         return retrieveNotification;
+    }
+
+    String getMessageId(String message) {
+        String[] parsed = parse(message);
+        return parsed[0];
     }
 }
