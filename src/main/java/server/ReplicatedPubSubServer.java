@@ -237,8 +237,7 @@ public class ReplicatedPubSubServer implements Communicate {
             }
             numClients++;
         }
-        String strippedExistingClientId = protocol.stripPadding(existingClientId);
-        String finalizedId = registerClientInServer(IP, Port, strippedExistingClientId);
+        String finalizedId = registerClientInServer(IP, Port, existingClientId);
         consistencyPolicy.enforceOnJoin(IP, Port, finalizedId, previousServer);
 
         return true;
@@ -250,7 +249,7 @@ public class ReplicatedPubSubServer implements Communicate {
             return generateAndReturnClientId(ip, port);
         } else {
             System.out.println("Need to enforce consistency");
-            dispatcher.setClientIdFor(ip, port, existingClientId);
+            dispatcher.setClientIdFor(ip, port, protocol.stripPadding(existingClientId));
             return existingClientId;
         }
 

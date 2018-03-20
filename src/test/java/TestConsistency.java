@@ -7,10 +7,13 @@ import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static org.junit.Assert.assertTrue;
 
 public class TestConsistency extends ReplicatedClientSetup {
+    private static final Logger LOGGER = Logger.getLogger( TestConsistency.class.getName() );
 
 //    @Test
 //    public void testSingleClientMoveAmongServers() throws RemoteException, NotBoundException  {
@@ -54,7 +57,7 @@ public class TestConsistency extends ReplicatedClientSetup {
     }
 
     @Test
-    public void testReadYourWritesSingleClient() throws RemoteException, NotBoundException, InterruptedException {
+    public void testReadYourWritesSingleClient() throws RemoteException, NotBoundException {
         Client testClient = uninitializedClients[0];
         testClient.initializeRemoteCommunication(testServerIp, serverPorts.get(0), serverInterfaceName);
         String testMessage = ";my non-reply test content 1";
@@ -64,7 +67,11 @@ public class TestConsistency extends ReplicatedClientSetup {
 //        Thread.sleep(5000);
 
         testClient.initializeRemoteCommunication(testServerIp, serverPorts.get(1), serverInterfaceName);
-        Thread.sleep(1000);
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            LOGGER.log(Level.WARNING, "Thread interrupting while sleeping in testReadYourWritesSingleClient.");
+        }
         System.out.println("testClient is at " + testClient.getId());
         List<Message> results = testClient.retrieve(
                 new Message(testProtocol1, testProtocol1.getRetrieveAllByClientQuery(testClient.getId()), true));
@@ -76,7 +83,26 @@ public class TestConsistency extends ReplicatedClientSetup {
             }
         }
 
+        testClient.terminateClient();
         assertTrue(found);
+    }
 
+    @Test
+    public void testSequentialConsistencySimple() throws RemoteException, NotBoundException {
+        Client testClient1 = clients[0];
+        Client testClient2 = clients[1];
+        Client testClient3 = clients[2];
+
+
+
+    }
+
+    public void simulateRandomNetworkDelay() {
+        int randomDelay = ThreadLocalRandom.current().nextInt(0, 2500);
+        try {
+            Thread.sleep(randomDelay);
+        } catch (InterruptedException e) {
+            LOGGER.log(Level.WARNING, "Thread interrupting while sleeping in simulateRandomNetworkDelay.");
+        }
     }
 }

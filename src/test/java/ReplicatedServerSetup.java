@@ -10,8 +10,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class ReplicatedServerSetup {
+    private static final Logger LOGGER = Logger.getLogger( ReplicatedServerSetup.class.getName() );
 
     Map<Integer, ReplicatedPubSubServer> replicatedServers = new ConcurrentHashMap<>();
     List<Integer> serverPorts;
@@ -38,7 +41,7 @@ public class ReplicatedServerSetup {
             64);
 
     @Before
-    public void setUpReplicatedServers() throws UnknownHostException, InterruptedException {
+    public void setUpReplicatedServers() throws UnknownHostException {
 
         int nextServerPort = 1099;
         int nextHearbeatPort = 9453;
@@ -55,11 +58,15 @@ public class ReplicatedServerSetup {
             replicatedServers.put(nextServerPort++, testReplicatedPubSubServer);
         }
         serverPorts = new ArrayList<>(replicatedServers.keySet());
-        Thread.sleep(100);
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            LOGGER.log(Level.WARNING, "Thread interrupted while sleeping in setUpReplicatedServers.");
+        }
     }
 
     @After
-    public void cleanupServers() throws InterruptedException {
+    public void cleanupServers() {
         for(ReplicatedPubSubServer server: replicatedServers.values()) {
             server.cleanup();
         }

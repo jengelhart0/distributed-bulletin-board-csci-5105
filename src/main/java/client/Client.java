@@ -110,7 +110,7 @@ public class Client implements Runnable {
         return communicateWithRemote(subscription, RemoteMessageCall.UNSUBSCRIBE);
     }
 
-    public List<Message> retrieve(Message queryMessage) throws InterruptedException {
+    public List<Message> retrieve(Message queryMessage) {
         String query = queryMessage.asRawMessage();
         pendingQueryLock.lock();
         try {
@@ -118,7 +118,12 @@ public class Client implements Runnable {
             if(communicateWithRemote(queryMessage, RemoteMessageCall.RETRIEVE)) {
                 List<Message> matches = listener.consumeMatchesIfAllReceivedFor(query);
                 while(matches == null) {
-                    matchesForPendingQueryReceived.await();
+                    try {
+                        matchesForPendingQueryReceived.await();
+                    } catch (InterruptedException e) {
+                        LOGGER.log(Level.SEVERE, "Client " + getId() +
+                                "interrupted while waiting to retrieve matches to query.");
+                    }
                     matches = listener.consumeMatchesIfAllReceivedFor(query);
                 }
                 return matches;
