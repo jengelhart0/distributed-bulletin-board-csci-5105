@@ -18,5 +18,6 @@ public interface CommunicationManager {
     void publish(Message message, MessageStore store);
     void pullSubscriptionMatchesFromStore(MessageStore store) throws IOException;
     void setClientId(String clientId);
+    String getClientId();
     void clientLeft();
 }

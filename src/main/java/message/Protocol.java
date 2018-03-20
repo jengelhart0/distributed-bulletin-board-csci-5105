@@ -224,12 +224,20 @@ public class Protocol {
         return message.toString();
     }
 
-    String insertInternals(String message, String messageId, String clientId) {
-        if(!areInternalFieldsBlank(message)) {
-            return null;
-        }
+    String insertMessageId(String message, String messageId) {
         String[] parsed = parse(message);
         parsed[0] = messageId;
+
+        StringBuilder result = new StringBuilder();
+        result.append(parsed[0]);
+        for(int i = 1; i < parsed.length; i++) {
+            result.append(delimiter).append(parsed[i]);
+        }
+        return result.toString();
+    }
+
+    String insertClientId(String message, String clientId) {
+        String[] parsed = parse(message);
         parsed[1] = clientId;
 
         StringBuilder result = new StringBuilder();
@@ -256,5 +264,10 @@ public class Protocol {
     String getMessageId(String message) {
         String[] parsed = parse(message);
         return parsed[0];
+    }
+
+    String getClientId(String message) {
+        String[] parsed = parse(message);
+        return parsed[1];
     }
 }

@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.rmi.NotBoundException;
+import java.rmi.Remote;
+import java.rmi.RemoteException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -105,7 +107,6 @@ class PeerListManager {
     }
 
     private void joinDiscoveredPeers(Set<String> replicatedServers) throws IOException, NotBoundException {
-
         for(String server: replicatedServers) {
             String[] serverLocation = server.split(registryServerLiaison.getDelimiter());
             String peerAddress = serverLocation[0];
@@ -249,6 +250,24 @@ class PeerListManager {
         }
     }
 
+    void publishToAllPeers(Message publication)  throws RemoteException {
+        for(Client client: clientsForReplicatedPeers.values()) {
+            if (!client.publish(publication)) {
+                throw new RemoteException("publishToPeer: Tried to publish to a peer with no client in " +
+                        "clientsForReplicatedPeers!");
+            }
+        }
+    }
+
+    void publishToCoordinator(Message message) throws IOException, NotBoundException {
+        String coordinatorIpPort = getCoordinator().getThisServersIpPortString();
+        Client coordinatorClient = clientsForReplicatedPeers.get(coordinatorIpPort);
+        if(coordinatorClient == null) {
+            throw new IllegalArgumentException("Exception trying to publishToCoordinator: Have no coordinatorClient");
+        }
+        coordinatorClient.publish(message);
+    }
+
     String getCoordinatorIp() throws IOException, NotBoundException {
         String ip;
 
@@ -259,14 +278,14 @@ class PeerListManager {
         return ip;
     }
 
-    String getCoordinatorPort() throws IOException, NotBoundException {
+    int getCoordinatorPort() throws IOException, NotBoundException {
         String port;
 
         String ipPort = getCoordinator().getThisServersIpPortString();
         String[] parsedIpPort = ipPort.split(protocol.getDelimiter());
         port = parsedIpPort[1];
 
-        return port;
+        return Integer.parseInt(port);
     }
 
 }

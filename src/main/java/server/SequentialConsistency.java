@@ -5,77 +5,108 @@ import message.Protocol;
 
 import java.io.IOException;
 import java.rmi.NotBoundException;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class SequentialConsistency implements ConsistencyPolicy {
     private ReplicatedPubSubServer server;
     private Protocol protocol;
     private Dispatcher dispatcher;
-    private MessageStore store;
     // maintains sorted order of next message to publish, since messageId is first field and determines correct publication order
-    private SortedSet<String> toPublishQueue;
-    private final Object queueLock = new Object();
+    private SortedMap<Integer, String> toPublishQueue;
+    private ConcurrentMap<Integer, String> messageIdToPublisherIpPortString;
     private int nextExpectedMessageId;
 
     @Override
-    public void initialize(ReplicatedPubSubServer server, Protocol protocol, Dispatcher dispatcher, MessageStore store) {
+    public void initialize(ReplicatedPubSubServer server, Protocol protocol, Dispatcher dispatcher) {
         this.server = server;
         this.protocol = protocol;
         this.dispatcher = dispatcher;
-        this.store = store;
-        this.toPublishQueue = new TreeSet<>();
+        this.toPublishQueue = Collections.synchronizedSortedMap(new TreeMap<>());
+        this.messageIdToPublisherIpPortString = new ConcurrentHashMap<>();
         this.nextExpectedMessageId = 0;
     }
 
     @Override
-    public void enforceOnJoin(String clientIp, int clientPort, String existingClientId, String previousServer) throws IOException, NotBoundException, InterruptedException {
-        if(!server.isCoordinator()) {
-            server.getCoordinator().Join(clientIp, clientPort, existingClientId, previousServer);
-        }
+    public void enforceOnJoin(String clientIp, int clientPort, String finalizedClientId, String previousServer) throws IOException, NotBoundException, InterruptedException {
+        // TODO: do we really need the coordinator need to have every user client join it? Working hypoth: no.
+//        if(!server.isCoordinator()) {
+//            server.getCoordinator().Join(clientIp, clientPort, finalizedClientId, previousServer);
+//        }
     }
 
     @Override
-     public void enforceOnPublish(String message, String clientIp, int clientPort, String existingClientId) throws IOException, NotBoundException, InterruptedException {
-        // if this server is coordinator
-        Message newMessage = new Message(protocol, message, false);
+    public void enforceOnLeave(String clientIp, int clientPort) throws IOException, NotBoundException, InterruptedException {
+//        if(!server.isCoordinator()) {
+//            server.getCoordinator().Leave(clientIp, clientPort);
+//        }
+    }
+
+    @Override
+    public boolean enforceOnPublish(Message message, String fromIp, int fromPort) throws IOException, NotBoundException {
+        String coordinatorIp = server.getCoordinatorIp();
+        int coordinatorPort = server.getCoordinatorPort();
 
         if(server.isCoordinator()) {
-            String messageId = server.requestNewMessageId();
-            newMessage.ensureInternalsExistAndRegenerateQuery(messageId, existingClientId);
-            sequentialPublish(newMessage, clientIp, clientPort);
-        // case when the coordinator is publishing to this server
-        } else if(server.getCoordinatorIp().equals(clientIp)
-                && server.getCoordinatorPort().equals(String.valueOf(clientPort))) {
-            if(!protocol.areInternalFieldsBlank(newMessage.asRawMessage())) {
-                sequentialPublish(newMessage, clientIp, clientPort);
-            } else {
-                throw new IllegalArgumentException("enforcing on publish, not in coordinator: internal fields should not be blank.");
-            }
+            // in this case, the message is from 1) a direct user client or 2) a non-coordinator peer. In both cases we
+            // have a manager for fromIp/fromPort
+            sequentialPublish(message, fromIp, fromPort);
+            publishToAllPeersAsCoordinator(message);
+
+        // case when the coordinator is publishing to this server.
+        // All servers have manager for coordinator, since it joined through peerClient
+        } else if( fromIp.equals(coordinatorIp) && (fromPort == coordinatorPort) ) {
+            sequentialPublish(message, coordinatorIp, coordinatorPort);
         // case when this publication is from a 'real' client
         } else {
-            // when sending new writes to Coordinator, we forward clientIp and clientPort. Coordinator maintains manager for
-            // client as well (see join/leave).
-            server.getCoordinator().Publish(newMessage.asRawMessage(), clientIp, clientPort);
+            server.publishToCoordinator(message);
         }
+        return true;
     }
 
-    private void sequentialPublish(Message message, String clientIp, int clientPort) {
+    private void publishToAllPeersAsCoordinator(Message message) throws IOException, NotBoundException {
+        if(!server.isCoordinator()) {
+            throw new IllegalArgumentException("SequentialConsistency: Tried to publish to all peers without being coordinator");
+        }
+        server.publishToAllPeers(message);
+    }
+
+    private void sequentialPublish(Message message, String fromIp, int fromPort) {
+        // Should only be called by the coordinator or if message is from the coordinator
+        queueMessage(message, fromIp, fromPort);
+        publishAllCorrectlyOrderedPublications();
+    }
+
+    private void queueMessage(Message message, String fromIp, int fromPort) {
         int messageId = Integer.parseInt(message.getMessageId());
-        if(messageId != nextExpectedMessageId) {
-            toPublishQueue.add(message.asRawMessage());
-        } else {
-            for(String publication: toPublishQueue) {
-                // this publication could be from a client attached to a different server. If so we publish through a
-                // general 'clientElsewhere' manager
-                if(dispatcher.getManagerFor(clientIp, clientPort) == null) {
-                    dispatcher.publish(publication, "clientElsewhere", -1);
-                } else {
-                    dispatcher.publish(message.asRawMessage(), clientIp, clientPort);
-                }
+        toPublishQueue.put(messageId, message.asRawMessage());
+        messageIdToPublisherIpPortString.put(messageId, ServerUtils.getIpPortString(fromIp, fromPort, protocol));
+    }
+
+    private void publishAllCorrectlyOrderedPublications() {
+        // toPublishQueue is a sorted map, whose keys are messageIds, so this iterates in order of pending messages' messageIds
+        for (Integer currentMessageId : toPublishQueue.keySet()) {
+            // If we are here, either 1) message is from coordinator or 2) this is coordinator.
+            // Either way, fromIp and fromPort are the Coordinator's location. We have a manager for all peers, including coordinator.
+            if(currentMessageId == nextExpectedMessageId) {
+                publishAndRemoveFromQueue(currentMessageId);
+                nextExpectedMessageId++;
+            } else {
+                break;
             }
-            nextExpectedMessageId++;
         }
     }
 
+    private void publishAndRemoveFromQueue(int currentMessageId) {
+        String ipPortString = messageIdToPublisherIpPortString.get(currentMessageId);
+        String fromIp = ServerUtils.getIpFromIpPortString(ipPortString, protocol);
+        int fromPort = ServerUtils.getPortFromIpPortString(ipPortString, protocol);
+
+        String publication = toPublishQueue.get(currentMessageId);
+        dispatcher.publish(publication, fromIp, fromPort);
+
+        toPublishQueue.remove(currentMessageId);
+        messageIdToPublisherIpPortString.remove(currentMessageId);
+    }
 }

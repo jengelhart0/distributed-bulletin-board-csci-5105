@@ -144,6 +144,14 @@ public class ClientManager implements CommunicationManager {
         this.clientId = clientId;
     }
 
+    @Override
+    public String getClientId() {
+        if(clientId == null) {
+            throw new IllegalArgumentException("Tried to get client ID from manager but it was null");
+        }
+        return clientId;
+    }
+
     private Set<String> getSubscriptionMatches(Message[] subscriptionsToMatch, MessageStore store) {
         Set<String> toDeliver = new HashSet<>();
         for(Message subscription: subscriptionsToMatch) {

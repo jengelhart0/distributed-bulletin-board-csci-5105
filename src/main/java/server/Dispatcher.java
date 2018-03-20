@@ -144,6 +144,10 @@ class Dispatcher {
         }
     }
 
+    String getClientIdFromManager(String ip, int port) {
+        return getManagerFor(ip, port).getClientId();
+    }
+
     CommunicationManager getManagerFor(String ip, int port) {
         return clientToClientManager.getOrDefault(ServerUtils.getIpPortString(ip, port, protocol), null);
     }

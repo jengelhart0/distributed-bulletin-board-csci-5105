@@ -230,7 +230,6 @@ public class ReplicatedPubSubServer implements Communicate {
             throws NotBoundException, IOException, InterruptedException {
 
         System.out.println("Joining client with id " + existingClientId + " to " + this.port);
-
         synchronized (numClientsLock) {
             if(numClients >= maxClients) {
                 LOGGER.log(Level.SEVERE, "Maximum clients exceeded for server " + getThisServersIpPortString());
@@ -238,18 +237,32 @@ public class ReplicatedPubSubServer implements Communicate {
             }
             numClients++;
         }
-        dispatcher.addNewClient(IP, Port);
+        String strippedExistingClientId = protocol.stripPadding(existingClientId);
+        String finalizedId = registerClientInServer(IP, Port, strippedExistingClientId);
+        consistencyPolicy.enforceOnJoin(IP, Port, finalizedId, previousServer);
+
+        return true;
+    }
+
+    private String registerClientInServer(String ip, int port, String existingClientId) throws IOException, NotBoundException {
+        dispatcher.addNewClient(ip, port);
         if(existingClientId == null) {
-//            System.out.println(getThisServersIpPortString() + " going to getCoordinator() in Join() for new client ID");
-            String newClientId = peerListManager.getCoordinator().requestNewClientId();
-            dispatcher.setClientIdFor(IP, Port, newClientId);
-            dispatcher.returnClientIdToClient(IP, Port, newClientId);
+            return generateAndReturnClientId(ip, port);
         } else {
             System.out.println("Need to enforce consistency");
-            dispatcher.setClientIdFor(IP, Port, existingClientId);
-            consistencyPolicy.enforceOnJoin(IP, Port, existingClientId, previousServer);
+            dispatcher.setClientIdFor(ip, port, existingClientId);
+            return existingClientId;
         }
-        return true;
+
+    }
+
+    private String generateAndReturnClientId(String ip, int port) throws IOException, NotBoundException {
+        // System.out.println(getThisServersIpPortString() + " going to getCoordinator() in Join() for new client ID");
+        String newClientId = protocol.stripPadding(peerListManager.getCoordinator().requestNewClientId());
+        dispatcher.setClientIdFor(ip, port, newClientId);
+        dispatcher.returnClientIdToClient(ip, port, newClientId);
+        System.out.println("Client ID generated: " + newClientId);
+        return newClientId;
     }
 
     @Override
@@ -282,14 +295,37 @@ public class ReplicatedPubSubServer implements Communicate {
 
     @Override
     public boolean Publish(String Message, String IP, int Port) throws RemoteException {
-        // TODO: need to add messageId/clientId
-//        System.out.println("Trying to add message " + Message + " to store, server port " + this.port);
+        //        System.out.println("Trying to add message " + Message + " to store, server port " + this.port);
 
-// Commented out because servers will be publishing to each other through peerClients, but messages will contain
-// original messageId/clientId
-//        return protocol.areInternalFieldsBlank(Message) && dispatcher.publish(Message, IP, Port);
-        return dispatcher.publish(Message, IP, Port);
+        // Commented out because servers will be publishing to each other through peerClients, but messages will contain
+        // original messageId/clientId
+        // return protocol.areInternalFieldsBlank(Message) && dispatcher.publish(Message, IP, Port);
+        try {
+            Message newMessage = new Message(protocol, Message, false);
+            ensureMessageInternalsExistAndRegenerateQuery(IP, Port, newMessage);
+            return consistencyPolicy.enforceOnPublish(newMessage, IP, Port);
+        } catch (IOException | NotBoundException | InterruptedException e) {
+            LOGGER.log(Level.SEVERE, "Exception while trying to Publish():");
+            e.printStackTrace();
+            return false;
+        }
+    }
 
+    private void ensureMessageInternalsExistAndRegenerateQuery(String clientIp, int clientPort, Message newMessage) throws IOException, NotBoundException {
+        String clientId = newMessage.getClientId();
+        String messageId = newMessage.getMessageId();
+        // If message had no clientId, message is directly from a user client and manager will have id. If it doesn't it will throw exception.
+        if(clientId.isEmpty()) {
+            clientId = dispatcher.getClientIdFromManager(clientIp, clientPort);
+            newMessage.insertClientId(clientId);
+        }
+        // If message had no messageId, message is directly from a user client. Otherwise it should already have a messageId.
+        if(messageId.isEmpty()) {
+            // TODO: this might not work: we may need to match coordinator with the right peerClient and make calls through that...
+            messageId = getCoordinator().requestNewMessageId();
+            newMessage.insertMessageId(messageId);
+        }
+        newMessage.regenerateQuery();
     }
 
     @Override
@@ -325,6 +361,14 @@ public class ReplicatedPubSubServer implements Communicate {
         return ServerUtils.getIpPortString(ip.getHostAddress(), port, protocol);
     }
 
+    void publishToCoordinator(Message publication) throws IOException, NotBoundException {
+        peerListManager.publishToCoordinator(publication);
+    }
+
+    void publishToAllPeers(Message publication) throws RemoteException {
+        peerListManager.publishToAllPeers(publication);
+    }
+
     List<Message> retrieveFromPeer(String server, Message queryMessage) throws InterruptedException {
         return peerListManager.retrieveFromPeer(server, queryMessage);
     }
@@ -337,8 +381,16 @@ public class ReplicatedPubSubServer implements Communicate {
         return peerListManager.getCoordinatorIp();
     }
 
-    String getCoordinatorPort() throws IOException, NotBoundException {
+    int getCoordinatorPort() throws IOException, NotBoundException {
         return peerListManager.getCoordinatorPort();
+    }
+
+    String getIp() {
+        return ip.getHostAddress();
+    }
+
+    int getPort() {
+        return port;
     }
 
 }
