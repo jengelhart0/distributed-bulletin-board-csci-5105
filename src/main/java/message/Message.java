@@ -108,6 +108,10 @@ public class Message {
         return protocol.isControlMessage(message);
     }
 
+    public boolean isCoordinatorPortMessage() {
+        return protocol.isCoordinatorPortMessage(protocol.stripPadding(asString));
+    }
+
     public String extractIdIfThisIsIdMessage() {
         return protocol.extractIdIfThisIsIdMessage(withoutInternalFields());
     }

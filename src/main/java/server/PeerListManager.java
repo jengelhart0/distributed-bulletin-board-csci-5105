@@ -34,6 +34,7 @@ class PeerListManager {
     private Scheduler peerListMonitor;
 
     private Communicate coordinator;
+    private int fromCoordinatorPort;
     private final Object coordinatorLock = new Object();
 
     private CoordinationState coordinationState;
@@ -55,7 +56,7 @@ class PeerListManager {
         this.clientsForReplicatedPeers = new ConcurrentHashMap<>();
 
         this.coordinator = null;
-
+        this.fromCoordinatorPort = -1;
         this.coordinationState = null;
     }
 
@@ -78,9 +79,9 @@ class PeerListManager {
                 try {
                     while (shouldThreadContinue()) {
                         discoverReplicatedPeers();
-//                        System.out.println("Server" + thisServer.getThisServersIpPortString() + " has " +
-//                        clientsForReplicatedPeers.size() + " peer server clients.");
-                        Thread.sleep(2500);
+//                        System.out.println("At server " + thisServer.getPort() + ": size of clientsForReplicatedPeers is " +
+//                                clientsForReplicatedPeers.size());
+                        Thread.sleep(100);
                     }
                 } catch (IOException e) {
                     LOGGER.log(Level.WARNING, "Detected registry server liaison finished execution." +
@@ -128,8 +129,10 @@ class PeerListManager {
 //                    }
                 }
                 peerClient.initializeRemoteCommunication(peerAddress, peerPort, serverInterfaceName);
-
                 clientsForReplicatedPeers.put(server, peerClient);
+                if(isCoordinator()) {
+                    tellPeerTheFromCoordinatorPort(peerClient);
+                }
             }
         }
     }
@@ -152,6 +155,13 @@ class PeerListManager {
 //            }
 //        }
 //    }
+
+    private void tellPeerTheFromCoordinatorPort(Client peerClient) {
+        peerClient.publish(new Message(
+                protocol,
+                protocol.buildCoordinatorPortNotification(),
+                false));
+    }
 
     private void findCoordinator() throws NotBoundException, IOException {
         Communicate newCoordinator = null;
@@ -186,7 +196,11 @@ class PeerListManager {
                         thisServer.getThisServersIpPortString());
             }
         }
-        return this.coordinator;
+        Communicate coord;
+        synchronized (coordinatorLock) {
+            coord = this.coordinator;
+        }
+        return coord;
     }
 
     boolean isCoordinatorKnown() {
@@ -225,16 +239,16 @@ class PeerListManager {
         return registryServerLiaison.getListOfServers();
     }
 
-    String requestNewMessageId() {
-        if(this.coordinator == thisServer && this.coordinationState != null) {
+    String requestNewMessageId() throws IOException, NotBoundException {
+        if(isCoordinator() && this.coordinationState != null) {
             return this.coordinationState.requestNewMessageId();
         }
         throw new IllegalArgumentException("Server at " + thisServer.getThisServersIpPortString() +
                 " asked for new message ID but is not coordinator or has no coordination state!");
     }
 
-    String requestNewClientId() {
-        if(this.coordinator == thisServer && this.coordinationState != null) {
+    String requestNewClientId() throws IOException, NotBoundException {
+        if(isCoordinator() && this.coordinationState != null) {
             return this.coordinationState.requestNewClientId();
         }
         throw new IllegalArgumentException("Server at " + thisServer.getThisServersIpPortString() +
@@ -252,6 +266,8 @@ class PeerListManager {
 
     void publishToAllPeers(Message publication)  throws RemoteException {
         for(Client client: clientsForReplicatedPeers.values()) {
+            System.out.println("Publishing to peer for " + client.getServer().getThisServersIpPortString() + "\n\t"
+            + "message " + publication.asRawMessage());
             if (!client.publish(publication)) {
                 throw new RemoteException("publishToPeer: Tried to publish to a peer with no client in " +
                         "clientsForReplicatedPeers!");
@@ -277,15 +293,33 @@ class PeerListManager {
 
         return ip;
     }
+// Misleading!! Mismatch between coordinator remote port and this servers peer coordinator clients listen port!
+//
+//    int getCoordinatorPort() throws IOException, NotBoundException {
+//        String port;
+//
+//        String ipPort = getCoordinator().getThisServersIpPortString();
+//        String[] parsedIpPort = ipPort.split(protocol.getDelimiter());
+//        port = parsedIpPort[1];
+//
+//        return Integer.parseInt(port);
+//    }
 
-    int getCoordinatorPort() throws IOException, NotBoundException {
-        String port;
+    //
+    void setFromCoordinatorPort(int port) {
+        synchronized (coordinatorLock) {
+            this.fromCoordinatorPort = port;
+        }
+    }
 
-        String ipPort = getCoordinator().getThisServersIpPortString();
-        String[] parsedIpPort = ipPort.split(protocol.getDelimiter());
-        port = parsedIpPort[1];
-
-        return Integer.parseInt(port);
+    boolean messageIsFromCoordinator(String fromIp, int fromPort) throws IOException, NotBoundException {
+        synchronized (coordinatorLock) {
+            if(fromCoordinatorPort < 0) {
+                throw new IllegalArgumentException("Tried to check if messageIsFromCoordinator but fromCoordinatorPort" +
+                        " is not set");
+            }
+            return fromIp.equals(getCoordinatorIp()) && (fromPort == fromCoordinatorPort);
+        }
     }
 
 }

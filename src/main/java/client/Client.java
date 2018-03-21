@@ -77,7 +77,6 @@ public class Client implements Runnable {
 
         establishRemoteObject();
         if (!join()) {
-            LOGGER.log(Level.WARNING, "Server refused returnClientIdToClient (likely because it already has MAXCLIENTS). Cleaning up...");
             cleanup();
         }
     }
@@ -154,7 +153,8 @@ public class Client implements Runnable {
                 throw new RuntimeException("RMI call " + call.toString() + " returned false.");
             }
         } catch (NotBoundException | IOException | IllegalArgumentException | InterruptedException e) {
-            LOGGER.log(Level.SEVERE, "Attempt to establish communication or communicate failed: " + e.toString());
+            LOGGER.log(Level.SEVERE, "Remote server call failed for call " + call.toString() + ": ");
+            e.printStackTrace();
             return false;
         }
         return true;
@@ -277,4 +277,8 @@ public class Client implements Runnable {
     public String getId() {
         return this.id;
     }
+
+    public String getIpAddress() { return this.localAddress.getHostAddress(); }
+
+    public int getListenPort() { return this.listenPort; }
 }

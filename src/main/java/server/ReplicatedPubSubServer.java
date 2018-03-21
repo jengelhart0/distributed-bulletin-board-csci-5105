@@ -228,8 +228,6 @@ public class ReplicatedPubSubServer implements Communicate {
     @Override
     public boolean Join(String IP, int Port, String existingClientId, String previousServer)
             throws NotBoundException, IOException, InterruptedException {
-
-        System.out.println("Joining client with id " + existingClientId + " to " + this.port);
         synchronized (numClientsLock) {
             if(numClients >= maxClients) {
                 LOGGER.log(Level.SEVERE, "Maximum clients exceeded for server " + getThisServersIpPortString());
@@ -260,7 +258,6 @@ public class ReplicatedPubSubServer implements Communicate {
         String newClientId = protocol.stripPadding(peerListManager.getCoordinator().requestNewClientId());
         dispatcher.setClientIdFor(ip, port, newClientId);
         dispatcher.returnClientIdToClient(ip, port, newClientId);
-        System.out.println("Client ID generated: " + newClientId);
         return newClientId;
     }
 
@@ -301,8 +298,13 @@ public class ReplicatedPubSubServer implements Communicate {
         // return protocol.areInternalFieldsBlank(Message) && dispatcher.publish(Message, IP, Port);
         try {
             Message newMessage = new Message(protocol, Message, false);
-            ensureMessageInternalsExistAndRegenerateQuery(IP, Port, newMessage);
-            return consistencyPolicy.enforceOnPublish(newMessage, IP, Port);
+            if(newMessage.isCoordinatorPortMessage()) {
+                peerListManager.setFromCoordinatorPort(Port);
+                return true;
+            } else {
+                ensureMessageInternalsExistAndRegenerateQuery(IP, Port, newMessage);
+                return consistencyPolicy.enforceOnPublish(newMessage, IP, Port);
+            }
         } catch (IOException | NotBoundException | InterruptedException e) {
             LOGGER.log(Level.SEVERE, "Exception while trying to Publish():");
             e.printStackTrace();
@@ -343,12 +345,12 @@ public class ReplicatedPubSubServer implements Communicate {
     }
 
     @Override
-    public String requestNewMessageId() throws RemoteException {
+    public String requestNewMessageId() throws IOException, NotBoundException {
         return peerListManager.requestNewMessageId();
     }
 
     @Override
-    public String requestNewClientId() throws RemoteException {
+    public String requestNewClientId() throws IOException, NotBoundException {
         return peerListManager.requestNewClientId();
     }
 
@@ -376,13 +378,18 @@ public class ReplicatedPubSubServer implements Communicate {
         return peerListManager.isCoordinator();
     }
 
-    String getCoordinatorIp() throws IOException, NotBoundException {
-        return peerListManager.getCoordinatorIp();
+    boolean messageIsFromCoordinator(String fromIp, int fromPort) throws IOException, NotBoundException {
+        return peerListManager.messageIsFromCoordinator(fromIp, fromPort);
     }
 
-    int getCoordinatorPort() throws IOException, NotBoundException {
-        return peerListManager.getCoordinatorPort();
-    }
+    // Misleading!! Mismatch between coordinator remote port and this servers peer coordinator clients listen port!
+//    String getCoordinatorIp() throws IOException, NotBoundException {
+//        return peerListManager.getCoordinatorIp();
+//    }
+//
+//    int getCoordinatorPort() throws IOException, NotBoundException {
+//        return peerListManager.getCoordinatorPort();
+//    }
 
     String getIp() {
         return ip.getHostAddress();

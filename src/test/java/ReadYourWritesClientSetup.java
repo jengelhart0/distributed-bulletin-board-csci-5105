@@ -1,5 +1,4 @@
 import client.Client;
-import message.Protocol;
 import org.junit.After;
 import org.junit.Before;
 
@@ -7,16 +6,15 @@ import java.io.IOException;
 import java.rmi.NotBoundException;
 
 
-public class ReplicatedClientSetup extends ReplicatedServerSetup {
-
+public class ReadYourWritesClientSetup extends ReadYourWritesServerSetup {
 
     Client[] clients;
     Client[] uninitializedClients;
+    int numClientsPerServer = 10;
 
     @Before
     public void setUpClients() throws IOException, NotBoundException {
         int listenPort;
-        int numClientsPerServer = 10;
         clients = new Client[numClientsPerServer * numTestServers];
         listenPort = 8888;
         int clientIdx = 0;

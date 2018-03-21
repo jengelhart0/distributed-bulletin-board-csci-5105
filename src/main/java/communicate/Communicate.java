@@ -22,7 +22,7 @@ public interface Communicate extends Remote {
     boolean Ping() throws RemoteException;
     Communicate getCoordinator() throws NotBoundException, IOException;
     boolean isCoordinatorKnown() throws RemoteException;
-    String requestNewClientId() throws RemoteException;
-    String requestNewMessageId() throws RemoteException;
+    String requestNewClientId() throws IOException, NotBoundException;
+    String requestNewMessageId() throws IOException, NotBoundException;
     String getThisServersIpPortString() throws RemoteException;
 }

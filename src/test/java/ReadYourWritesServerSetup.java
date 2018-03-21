@@ -13,8 +13,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class ReplicatedServerSetup {
-    private static final Logger LOGGER = Logger.getLogger( ReplicatedServerSetup.class.getName() );
+public class ReadYourWritesServerSetup {
+    private static final Logger LOGGER = Logger.getLogger( ReadYourWritesServerSetup.class.getName() );
 
     Map<Integer, ReplicatedPubSubServer> replicatedServers = new ConcurrentHashMap<>();
     List<Integer> serverPorts;

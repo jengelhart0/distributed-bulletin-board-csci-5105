@@ -133,7 +133,7 @@ public class Protocol {
     }
 
     boolean isControlMessage(String message) {
-        return isClientIdMessage(message) || isRetrieveNotification(message);
+        return isClientIdMessage(message) || isCoordinatorPortMessage(message) || isRetrieveNotification(message);
     }
 
     private boolean isClientIdMessage(String message) {
@@ -141,6 +141,12 @@ public class Protocol {
         return parsed.length > 1
                 && parsed[0].equals("clientId")
                 && !parsed[1].isEmpty();
+    }
+
+    boolean isCoordinatorPortMessage(String message) {
+        String[] parsed = controlParse(message);
+        return parsed.length >= 1
+                && parsed[0].equals("fromCoordinator");
     }
 
     public boolean isRetrieveNotification(String message) {
@@ -259,6 +265,10 @@ public class Protocol {
                 + getControlDelimiter()
                 + numRetrieved;
         return retrieveNotification;
+    }
+
+    public String buildCoordinatorPortNotification() {
+        return "fromCoordinator";
     }
 
     String getMessageId(String message) {

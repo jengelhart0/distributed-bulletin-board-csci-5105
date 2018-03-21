@@ -4,11 +4,12 @@ import server.ReplicatedPubSubServer;
 
 import java.io.IOException;
 import java.rmi.NotBoundException;
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
-public class TestReplicatedServers extends ReplicatedServerSetup {
+public class TestSequentialServers extends SequentialServerSetup {
 
     @Test
     public void testServersAgreeOnCoordinator() throws IOException, NotBoundException {

@@ -60,15 +60,14 @@ public class PairedKeyMessageStore implements MessageStore {
     public boolean publish(Message message) {
         message.setLastAccess(new Date());
         Set<String> conditions = message.getQueryConditions();
-        System.out.println(store.keySet().size());
+//        System.out.println(store.keySet().size());
         for (String condition : conditions) {
-            System.out.println("COndition" + condition);
 
             PublicationList listToAddPublicationTo = store.get(condition);
             if(listToAddPublicationTo == null) {
                 listToAddPublicationTo = new PublicationList();
                 store.put(condition, listToAddPublicationTo);
-                System.out.println("Added message " + message.asRawMessage() + " to store at condition " + condition );
+//                System.out.println("Added message " + message.asRawMessage() + " to store at condition " + condition );
             }
             listToAddPublicationTo.synchronizedAdd(message.asRawMessage());
             message.setLastRetrievedFor(condition, message.asRawMessage());

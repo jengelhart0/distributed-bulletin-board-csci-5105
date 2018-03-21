@@ -45,8 +45,6 @@ public class SequentialConsistency implements ConsistencyPolicy {
 
     @Override
     public boolean enforceOnPublish(Message message, String fromIp, int fromPort) throws IOException, NotBoundException {
-        String coordinatorIp = server.getCoordinatorIp();
-        int coordinatorPort = server.getCoordinatorPort();
 
         if(server.isCoordinator()) {
             // in this case, the message is from 1) a direct user client or 2) a non-coordinator peer. In both cases we
@@ -56,8 +54,8 @@ public class SequentialConsistency implements ConsistencyPolicy {
 
         // case when the coordinator is publishing to this server.
         // All servers have manager for coordinator, since it joined through peerClient
-        } else if( fromIp.equals(coordinatorIp) && (fromPort == coordinatorPort) ) {
-            sequentialPublish(message, coordinatorIp, coordinatorPort);
+        } else if( server.messageIsFromCoordinator(fromIp, fromPort) ) {
+            sequentialPublish(message, fromIp, fromPort);
         // case when this publication is from a 'real' client
         } else {
             server.publishToCoordinator(message);
