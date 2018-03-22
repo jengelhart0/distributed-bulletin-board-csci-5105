@@ -296,6 +296,7 @@ public class ReplicatedPubSubServer implements Communicate {
         // Commented out because servers will be publishing to each other through peerClients, but messages will contain
         // original messageId/clientId
         // return protocol.areInternalFieldsBlank(Message) && dispatcher.publish(Message, IP, Port);
+        System.out.println(Message);
         try {
             Message newMessage = new Message(protocol, Message, false);
             if(newMessage.isCoordinatorPortMessage()) {

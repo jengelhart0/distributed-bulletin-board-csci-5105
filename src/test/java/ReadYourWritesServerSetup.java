@@ -1,6 +1,7 @@
 import message.Protocol;
 import org.junit.After;
 import org.junit.Before;
+import server.ReadYourWritesPolicy;
 import server.ReplicatedPubSubServer;
 
 import java.net.InetAddress;
@@ -53,6 +54,7 @@ public class ReadYourWritesServerSetup {
                             .serverPort(nextServerPort)
                             .heartbeatPort(nextHearbeatPort++)
                             .shouldRetrieveMatchesAutomatically(false)
+                            .consistencyPolicy(new ReadYourWritesPolicy())
                             .build();
             testReplicatedPubSubServer.initialize();
             replicatedServers.put(nextServerPort++, testReplicatedPubSubServer);

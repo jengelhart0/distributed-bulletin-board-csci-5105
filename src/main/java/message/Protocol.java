@@ -268,7 +268,7 @@ public class Protocol {
     }
 
     public String buildCoordinatorPortNotification() {
-        return "fromCoordinator";
+        return "fromCoordinator" + getControlDelimiter();
     }
 
     String getMessageId(String message) {
