@@ -136,11 +136,11 @@ public class Message {
     }
 
     public String getMessageId() {
-        return protocol.getMessageId(asString);
+        return protocol.getMessageIdAsString(asString);
     }
 
     public String getClientId() {
-        return protocol.getClientId(asString);
+        return protocol.getClientIdAsString(asString);
     }
 
 }

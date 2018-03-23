@@ -21,7 +21,7 @@ public interface Communicate extends Remote {
     boolean Publish(String Message, String IP, int Port) throws RemoteException;
     boolean Ping() throws RemoteException;
     Communicate getCoordinator() throws NotBoundException, IOException;
-    boolean isCoordinatorKnown() throws RemoteException;
+//    boolean isCoordinatorKnown() throws RemoteException;
     String requestNewClientId() throws IOException, NotBoundException;
     String requestNewMessageId() throws IOException, NotBoundException;
     String getThisServersIpPortString() throws RemoteException;

@@ -1,6 +1,7 @@
 package server;
 
 import message.Message;
+import message.Protocol;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,10 +10,12 @@ public class PairedKeyMessageStore implements MessageStore {
 
     private Map<String, PublicationList> store;
     private Date lastStoreFlush;
+    private Protocol protocol;
 
-    PairedKeyMessageStore() {
+    PairedKeyMessageStore(Protocol protocol) {
         this.store = new ConcurrentHashMap<>();
         this.lastStoreFlush = new Date();
+        this.protocol = protocol;
     }
 
     @Override
@@ -35,7 +38,7 @@ public class PairedKeyMessageStore implements MessageStore {
             candidates = (
                     store.containsKey(condition) ?
                     store.get(condition).getPublicationsStartingAt(lastRetrieved)
-                    : new TreeSet<>());
+                    : new TreeSet<>(new MessageIdComparator(this.protocol)));
 
             if (!candidates.isEmpty()) {
                 subscription.setLastRetrievedFor(condition, candidates.last());
@@ -65,7 +68,7 @@ public class PairedKeyMessageStore implements MessageStore {
 
             PublicationList listToAddPublicationTo = store.get(condition);
             if(listToAddPublicationTo == null) {
-                listToAddPublicationTo = new PublicationList();
+                listToAddPublicationTo = new PublicationList(protocol);
                 store.put(condition, listToAddPublicationTo);
 //                System.out.println("Added message " + message.asRawMessage() + " to store at condition " + condition );
             }

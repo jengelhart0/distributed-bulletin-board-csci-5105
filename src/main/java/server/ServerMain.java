@@ -13,7 +13,7 @@ public class ServerMain {
 
     private static ReplicatedPubSubServer startServer(String remoteServerIp) throws IOException {
         ReplicatedPubSubServer replicatedPubSubServer =
-                new ReplicatedPubSubServer.Builder(CommunicateArticle.ARTICLE_PROTOCOL, InetAddress.getByName(remoteServerIp))
+                new ReplicatedPubSubServer.Builder(CommunicateArticle.ARTICLE_PROTOCOL, InetAddress.getByName(remoteServerIp), 1)
                 .build();
 
         replicatedPubSubServer.initialize();

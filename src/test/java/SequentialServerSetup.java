@@ -20,9 +20,32 @@ public class SequentialServerSetup {
     Map<Integer, ReplicatedPubSubServer> replicatedServers = new ConcurrentHashMap<>();
     List<Integer> serverPorts;
 
-    String serverInterfaceName = "CommunicateTest";
-    int numTestServers = 5;
-    String testServerIp = "127.0.0.1";
+    String serverInterfaceName;
+    int numTestServers;
+    String testServerIp;
+    Protocol testProtocol1;
+
+    SequentialServerSetup() {
+        serverInterfaceName = "CommunicateTest";
+        numTestServers = 5;
+        try {
+            testServerIp = InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) {
+            LOGGER.log(Level.SEVERE, "UnknownHostException while trying to set up servers");
+            e.printStackTrace();
+            return;
+        }
+        System.out.println(testServerIp);
+
+        testProtocol1 = new Protocol(
+                Collections.singletonList("replyTo"),
+                Collections.singletonList(new String[]{""}),
+                ";",
+                "",
+                64);
+
+    }
+
 //    Protocol bulletinProtocol = new Protocol(
 //            new String[]{"messageId", "replyTo", "clientId"},
 //            new String[][]{
@@ -34,12 +57,7 @@ public class SequentialServerSetup {
 //            "",
 //            256);
 
-    Protocol testProtocol1 = new Protocol(
-            Collections.singletonList("replyTo"),
-            Collections.singletonList(new String[]{""}),
-            ";",
-            "",
-            64);
+
 
     @Before
     public void setUpReplicatedServers() throws UnknownHostException {
@@ -49,7 +67,7 @@ public class SequentialServerSetup {
 
         for (int i = 0; i < numTestServers; i++) {
             ReplicatedPubSubServer testReplicatedPubSubServer =
-                    new ReplicatedPubSubServer.Builder(testProtocol1, InetAddress.getByName(testServerIp))
+                    new ReplicatedPubSubServer.Builder(testProtocol1, InetAddress.getByName(testServerIp), numTestServers)
                             .name(serverInterfaceName)
                             .serverPort(nextServerPort)
                             .heartbeatPort(nextHearbeatPort++)
@@ -60,11 +78,11 @@ public class SequentialServerSetup {
             replicatedServers.put(nextServerPort++, testReplicatedPubSubServer);
         }
         serverPorts = new ArrayList<>(replicatedServers.keySet());
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            LOGGER.log(Level.WARNING, "Thread interrupted while sleeping in setUpReplicatedServers.");
-        }
+//        try {
+//            Thread.sleep(1500);
+//        } catch (InterruptedException e) {
+//            LOGGER.log(Level.WARNING, "Thread interrupted while sleeping in setUpReplicatedServers.");
+//        }
     }
 
     @After

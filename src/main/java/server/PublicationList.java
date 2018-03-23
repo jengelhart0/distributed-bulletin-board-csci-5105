@@ -1,5 +1,7 @@
 package server;
 
+import message.Protocol;
+
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -8,22 +10,27 @@ class PublicationList {
 
     private SortedSet<String> publications;
     private final Object listLock = new Object();
-
-    PublicationList() {
-        this.publications = new TreeSet<>();
+    private Protocol protocol;
+    PublicationList(Protocol protocol) {
+        this.protocol = protocol;
+        this.publications = new TreeSet<>(new MessageIdComparator(protocol));
     }
 
     SortedSet<String> getPublicationsStartingAt(String lastReceived) {
         synchronized (listLock) {
             if (this.publications.contains(lastReceived)) {
-                SortedSet<String> result = new TreeSet<>(this.publications.tailSet(lastReceived));
+                SortedSet<String> result = new TreeSet<>(new MessageIdComparator(protocol));
+                result.addAll(this.publications.tailSet(lastReceived));
                 result.remove(lastReceived);
                 return result;
             }
             if (lastReceived.equals("")) {
-                return new TreeSet<>(this.publications);
+                SortedSet<String> result = new TreeSet<>(new MessageIdComparator(protocol));
+                result.addAll(this.publications);
+                return result;
+
             }
-            return new TreeSet<>();
+            return new TreeSet<>(new MessageIdComparator(protocol));
         }
     }
 

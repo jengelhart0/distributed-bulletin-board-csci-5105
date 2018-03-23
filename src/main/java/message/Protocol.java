@@ -271,13 +271,30 @@ public class Protocol {
         return "fromCoordinator" + getControlDelimiter();
     }
 
-    String getMessageId(String message) {
-        String[] parsed = parse(message);
-        return parsed[0];
+    String getMessageIdAsString(String message) {
+        if(!message.contains(delimiter)) {
+            throw new IllegalArgumentException("getMessageIdAsString: tried to get message id from string with no " +
+                    "delimiter: " + message);
+        }
+        return message.substring(
+                0, message.indexOf(delimiter));
+//        String[] parsed = parse(message);
+//        return parsed[0];
     }
 
-    String getClientId(String message) {
-        String[] parsed = parse(message);
-        return parsed[1];
+    public int getMessageIdAsInt(String message) {
+        return Integer.parseInt(getMessageIdAsString(message));
+    }
+
+    String getClientIdAsString(String message) {
+        if(!message.contains(delimiter)) {
+            throw new IllegalArgumentException("getClientIdAsString: tried to get client id from string with no " +
+                    "delimiter: " + message);
+        }
+        int firstDelimiterIdx = message.indexOf(delimiter);
+        return message.substring(firstDelimiterIdx + 1, message.indexOf(delimiter, firstDelimiterIdx + 1));
+
+//        String[] parsed = parse(message);
+//        return parsed[1];
     }
 }

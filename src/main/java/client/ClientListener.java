@@ -90,7 +90,7 @@ public class ClientListener extends Listener {
         idReceivedByListenerLock.lock();
         try {
             this.receivedClientId = clientId;
-            idHasBeenSet.signal();
+            idHasBeenSet.signalAll();
         } finally {
             idReceivedByListenerLock.unlock();
         }

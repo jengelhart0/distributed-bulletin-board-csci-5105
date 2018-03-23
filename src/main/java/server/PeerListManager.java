@@ -10,13 +10,14 @@ import java.io.IOException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.rmi.NotBoundException;
-import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -28,6 +29,7 @@ class PeerListManager {
     private int serverPort;
     private Protocol protocol;
     private RegistryServerLiaison registryServerLiaison;
+    private int numExpectedServers;
 
     private ReplicatedPubSubServer thisServer;
 
@@ -35,7 +37,8 @@ class PeerListManager {
 
     private Communicate coordinator;
     private int fromCoordinatorPort;
-    private final Object coordinatorLock = new Object();
+    private final Lock coordinatorLock = new ReentrantLock();
+    private final Condition coordinatorSet = coordinatorLock.newCondition();
 
     private CoordinationState coordinationState;
 
@@ -46,7 +49,7 @@ class PeerListManager {
     private int nextPeerListenPort;
 
     PeerListManager(String serverInterfaceName, InetAddress serverIp, int serverPort, Protocol protocol,
-                    int startingPeerListenPort, RegistryServerLiaison registryServerLiaison) {
+                    int startingPeerListenPort, RegistryServerLiaison registryServerLiaison, int numExpectedServers) {
         this.serverInterfaceName = serverInterfaceName;
         this.serverIp = serverIp;
         this.serverPort = serverPort;
@@ -54,6 +57,7 @@ class PeerListManager {
         this.nextPeerListenPort = startingPeerListenPort;
         this.registryServerLiaison = registryServerLiaison;
         this.clientsForReplicatedPeers = new ConcurrentHashMap<>();
+        this.numExpectedServers = numExpectedServers;
 
         this.coordinator = null;
         this.fromCoordinatorPort = -1;
@@ -77,11 +81,14 @@ class PeerListManager {
             @Override
             public void run() {
                 try {
+//                    waitForOtherPeersToJoin();
                     while (shouldThreadContinue()) {
                         discoverReplicatedPeers();
 //                        System.out.println("At server " + thisServer.getPort() + ": size of clientsForReplicatedPeers is " +
 //                                clientsForReplicatedPeers.size());
-                        Thread.sleep(100);
+//                        System.out.println("NUM procs avail: " + String.valueOf(Runtime.getRuntime().availableProcessors()));
+//                        System.out.println("NUM active threads" + java.lang.Thread.activeCount());
+                        Thread.sleep(1000);
                     }
                 } catch (IOException e) {
                     LOGGER.log(Level.WARNING, "Detected registry server liaison finished execution." +
@@ -97,14 +104,81 @@ class PeerListManager {
         new Thread(peerListMonitor).start();
     }
 
+//    private void waitForOtherPeersToJoin () {
+//        try {
+//            Thread.sleep(2000);
+//        } catch (InterruptedException e) {
+//            LOGGER.log(Level.SEVERE, "Interrupted waiting for other peers to join");
+//        }
+//    }
+
     private void discoverReplicatedPeers() throws IOException, NotBoundException {
         Set<String> peers = registryServerLiaison.getListOfServers();
-        // TODO: won't work until we can get accurate port back from registry server getList (currently storing heartbeatPort)!
-        peers.remove(serverIp.getHostAddress() + registryServerLiaison.getDelimiter() + serverPort);
-        joinDiscoveredPeers(peers);
-        // TODO: add back in after testing??
-    //        leaveStalePeers(peers);
-        findCoordinator();
+        if(peers.size() >= numExpectedServers) {
+            System.out.println(thisServer.getPort() + ": discovered list of servers: " + peers.toString());
+            peers.remove(serverIp.getHostAddress() + registryServerLiaison.getDelimiter() + serverPort);
+            findAndJoinCoordinatorIfUnknown(peers);
+            joinDiscoveredPeers(peers);
+            // TODO: add back in after testing??
+            //        leaveStalePeers(peers);
+        }
+    }
+
+    private void findAndJoinCoordinatorIfUnknown(Set<String> replicatedServers) throws IOException, NotBoundException {
+        System.out.println(thisServer.getPort() + ": about to grab lock in findAndJoinCoordinator");
+        coordinatorLock.lock();
+        try {
+            if(coordinator == null) {
+                System.out.println(thisServer.getPort() + ": coordinator null, looking for it");
+                String newCoordinatorLocation = thisServer.getThisServersIpPortString();
+                for (String server : replicatedServers) {
+                    if (server.compareTo(newCoordinatorLocation) < 0) {
+                        newCoordinatorLocation = server;
+                    }
+                }
+                registerCoordinator(newCoordinatorLocation);
+            }
+            System.out.println(thisServer.getPort() + " signaling the coordinator is set to " + coordinator.getThisServersIpPortString());
+            coordinatorSet.signalAll();
+        } finally {
+            coordinatorLock.unlock();
+        }
+    }
+
+    private void registerCoordinator(String newCoordinatorLocation) throws IOException, NotBoundException {
+        // Do NOT lock coordinator here: the only caller locks it.
+        if (newCoordinatorLocation.equals(thisServer.getThisServersIpPortString())) {
+            establishCoordinationState();
+            this.coordinator = thisServer;
+            System.out.println(thisServer.getPort() + ": I had min ipPortString. I am the coordinator then.");
+        } else {
+            Client coordinatorClient = createCoordinatorClient(newCoordinatorLocation);
+            clientsForReplicatedPeers.put(newCoordinatorLocation, coordinatorClient);
+            this.coordinator = coordinatorClient.getServer();
+        }
+    }
+
+    private Client createCoordinatorClient(String newCoordinatorLocation) throws IOException, NotBoundException {
+        Client coordinatorClient = null;
+        while(coordinatorClient == null) {
+            coordinatorClient = tryToCreateNewClientAt(nextPeerListenPort++);
+        }
+        String coordinatorIp = ServerUtils.getIpFromIpPortString(newCoordinatorLocation, protocol);
+        int coordinatorPort = ServerUtils.getPortFromIpPortString(newCoordinatorLocation, protocol);
+        coordinatorClient.initializeRemoteCommunication(coordinatorIp, coordinatorPort, serverInterfaceName);
+        return coordinatorClient;
+    }
+
+    private void establishCoordinationState() {
+        // For this POC, we are only building functionality that assumes Coordinator is established at system init and
+        // stably remains Coordinator. Allowing Coordinator to crash/change would mean we would need to 'recover'
+        // Coordinator state here, presumably by asking every peer for their latest used message/clientIds and using
+        // responses to determine next ids to use.
+
+        // Do NOT lock coordinator here. Calls to this are locked.
+        if(coordinationState == null) {
+            this.coordinationState = new CoordinationState();
+        }
     }
 
     private void joinDiscoveredPeers(Set<String> replicatedServers) throws IOException, NotBoundException {
@@ -130,10 +204,15 @@ class PeerListManager {
                 }
                 peerClient.initializeRemoteCommunication(peerAddress, peerPort, serverInterfaceName);
                 clientsForReplicatedPeers.put(server, peerClient);
-                if(isCoordinator()) {
-                    tellPeerTheFromCoordinatorPort(peerClient);
-                }
             }
+        }
+        coordinatorLock.lock();
+        try {
+            if(thisServer.isCoordinator()) {
+                tellPeersTheFromCoordinatorPort();
+            }
+        } finally {
+            coordinatorLock.unlock();
         }
     }
 
@@ -156,78 +235,32 @@ class PeerListManager {
 //        }
 //    }
 
-    private void tellPeerTheFromCoordinatorPort(Client peerClient) {
-        peerClient.publish(new Message(
-                protocol,
-                protocol.buildCoordinatorPortNotification(),
-                false));
+    private void tellPeersTheFromCoordinatorPort() {
+        for(Client peerClient: clientsForReplicatedPeers.values()) {
+            peerClient.publish(new Message(
+                    protocol,
+                    protocol.buildCoordinatorPortNotification(),
+                    false));
+        }
     }
 
-    private void findCoordinator() throws NotBoundException, IOException {
-        Communicate newCoordinator = null;
-        if(clientsForReplicatedPeers.isEmpty()) {
-//            System.out.println(thisServer.getThisServersIpPortString() + " considers itself coordinator");
-            newCoordinator = thisServer;
-        } else {
-            // TODO: find a more efficient means of coordinator determination
-            while(newCoordinator == null) {
-                for (Client peerClient : clientsForReplicatedPeers.values()) {
-                    Communicate peer = peerClient.getServer();
-                    if (peer.isCoordinatorKnown()) {
-//                        System.out.println(thisServer.getThisServersIpPortString() + " trying to getCoordinator() by asking "
-//                        + peer.getThisServersIpPortString());
-                        newCoordinator = peer.getCoordinator();
-                        break;
-                    }
-                }
-            }
-        }
-//        System.out.println(thisServer.getThisServersIpPortString() + " found Coordinator " + newCoordinator.getThisServersIpPortString());
-        setCoordinator(newCoordinator);
-    }
 
     Communicate getCoordinator() throws IOException, NotBoundException {
-        int attempts = 0;
-        while(!isCoordinatorKnown()) {
-            findCoordinator();
-            attempts++;
-            if(attempts % 25 == 0) {
-                System.out.println("Struggling to find coordinator: server " +
-                        thisServer.getThisServersIpPortString());
+        Communicate coord = null;
+        coordinatorLock.lock();
+        try {
+            while (coordinator == null) {
+                System.out.println(thisServer.getPort() + ": about to wait for coordinator to be set");
+                coordinatorSet.await();
+                System.out.println(thisServer.getPort() + ": just woke up from napping on coordinator being set");
             }
-        }
-        Communicate coord;
-        synchronized (coordinatorLock) {
-            coord = this.coordinator;
+            coord = coordinator;
+        } catch (InterruptedException e) {
+            LOGGER.log(Level.SEVERE, "Interrupted while waiting for coordinator to be set.");
+        } finally {
+            coordinatorLock.unlock();
         }
         return coord;
-    }
-
-    boolean isCoordinatorKnown() {
-        synchronized (coordinatorLock) {
-            return coordinator != null;
-        }
-    }
-    private void setCoordinator(Communicate newCoordinator) {
-
-        synchronized (coordinatorLock) {
-
-            if(newCoordinator.equals(thisServer)) {
-                establishCoordinationState();
-            }
-
-            this.coordinator = newCoordinator;
-        }
-    }
-
-    private void establishCoordinationState() {
-        // For this POC, we are only building functionality that assumes Coordinator is established at system init and
-        // stably remains Coordinator. Allowing Coordinator to crash/change would mean we would need to 'recover'
-        // Coordinator state here, presumably by asking every peer for their latest used message/clientIds and using
-        // responses to determine next ids to use.
-        if(coordinationState == null) {
-            this.coordinationState = new CoordinationState();
-        }
     }
 
     public boolean isCoordinator() throws IOException, NotBoundException {
@@ -307,19 +340,23 @@ class PeerListManager {
 
     //
     void setFromCoordinatorPort(int port) {
-        synchronized (coordinatorLock) {
-            this.fromCoordinatorPort = port;
-        }
+        coordinatorLock.lock();
+        this.fromCoordinatorPort = port;
+        coordinatorLock.unlock();
     }
 
     boolean messageIsFromCoordinator(String fromIp, int fromPort) throws IOException, NotBoundException {
-        synchronized (coordinatorLock) {
-            if(fromCoordinatorPort < 0) {
+        int coordPort;
+        coordinatorLock.lock();
+        try {
+            if (fromCoordinatorPort < 0) {
                 throw new IllegalArgumentException("Tried to check if messageIsFromCoordinator but fromCoordinatorPort" +
                         " is not set");
             }
-            return fromIp.equals(getCoordinatorIp()) && (fromPort == fromCoordinatorPort);
+            coordPort = fromCoordinatorPort;
+        } finally {
+            coordinatorLock.unlock();
         }
+        return fromIp.equals(getCoordinatorIp()) && (fromPort == coordPort);
     }
-
 }

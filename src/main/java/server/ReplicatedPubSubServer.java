@@ -28,6 +28,8 @@ public class ReplicatedPubSubServer implements Communicate {
     private int maxClients;
     private int numClients;
 
+    private int numServersInSystem;
+
     private final Object numClientsLock = new Object();
 
     private Dispatcher dispatcher;
@@ -40,6 +42,7 @@ public class ReplicatedPubSubServer implements Communicate {
         this.protocol = builder.protocol;
         this.ip = builder.ip;
         this.port = builder.serverPort;
+        this.numServersInSystem = builder.numServersInSystem;
         this.maxClients = builder.maxClients;
 
         this.dispatcher = new Dispatcher(this.protocol, builder.store, builder.shouldRetrieveMatchesAutomatically);
@@ -52,7 +55,7 @@ public class ReplicatedPubSubServer implements Communicate {
                 builder.serverListSize);
 
         this.peerListManager = new PeerListManager(name, ip, port, protocol,
-                builder.startingPeerListenPort, registryServerLiaison);
+                builder.startingPeerListenPort, registryServerLiaison, builder.numServersInSystem);
         builder.consistencyPolicy.initialize(this, protocol, dispatcher);
         this.consistencyPolicy = builder.consistencyPolicy;
     }
@@ -60,6 +63,7 @@ public class ReplicatedPubSubServer implements Communicate {
     public static class Builder {
         private Protocol protocol;
         private InetAddress ip;
+        private int numServersInSystem;
 
         private String name;
         private int maxClients;
@@ -82,9 +86,10 @@ public class ReplicatedPubSubServer implements Communicate {
         private boolean shouldRetrieveMatchesAutomatically;
 
 
-        public Builder(Protocol protocol, InetAddress ip) throws UnknownHostException {
+        public Builder(Protocol protocol, InetAddress ip, int numServersInSystem) throws UnknownHostException {
             this.protocol = protocol;
             this.ip = ip;
+            this.numServersInSystem = numServersInSystem;
 
             // set optional parameters to defaults
             this.name = Communicate.NAME;
@@ -97,7 +102,7 @@ public class ReplicatedPubSubServer implements Communicate {
             this.serverListSize = 1024;
             this.heartbeatPort = 9453;
             this.startingPeerListenPort = 18888;
-            this.store = new PairedKeyMessageStore();
+            this.store = new PairedKeyMessageStore(protocol);
             this.shouldRetrieveMatchesAutomatically = true;
             this.consistencyPolicy = new ReadYourWritesPolicy();
         }
@@ -296,7 +301,6 @@ public class ReplicatedPubSubServer implements Communicate {
         // Commented out because servers will be publishing to each other through peerClients, but messages will contain
         // original messageId/clientId
         // return protocol.areInternalFieldsBlank(Message) && dispatcher.publish(Message, IP, Port);
-        System.out.println(Message);
         try {
             Message newMessage = new Message(protocol, Message, false);
             if(newMessage.isCoordinatorPortMessage()) {
@@ -340,10 +344,10 @@ public class ReplicatedPubSubServer implements Communicate {
         return peerListManager.getCoordinator();
     }
 
-    @Override
-    public boolean isCoordinatorKnown() throws RemoteException {
-        return peerListManager.isCoordinatorKnown();
-    }
+//    @Override
+//    public boolean isCoordinatorKnown() throws RemoteException {
+//        return peerListManager.isCoordinatorKnown();
+//    }
 
     @Override
     public String requestNewMessageId() throws IOException, NotBoundException {
@@ -352,6 +356,9 @@ public class ReplicatedPubSubServer implements Communicate {
 
     @Override
     public String requestNewClientId() throws IOException, NotBoundException {
+//        System.out.println(this.getPort() + ": I was asked for a new client ID");
+//        System.out.println(this.getPort() + ": I think coordinator is: " + getCoordinator().getThisServersIpPortString());
+//        System.out.println(this.getPort() + ": My answer to isCoordinator(): " + isCoordinator());
         return peerListManager.requestNewClientId();
     }
 

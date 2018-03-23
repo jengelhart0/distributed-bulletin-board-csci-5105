@@ -80,7 +80,7 @@ public class QueryMatcher {
         if(allMatchesReceivedFor(query)) {
             pendingQueryLock.lock();
             try {
-                matchesForPendingQueryReceived.signal();
+                matchesForPendingQueryReceived.signalAll();
             } finally {
                 pendingQueryLock.unlock();
             }

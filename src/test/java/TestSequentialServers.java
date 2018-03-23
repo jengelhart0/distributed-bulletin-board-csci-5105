@@ -4,6 +4,7 @@ import server.ReplicatedPubSubServer;
 
 import java.io.IOException;
 import java.rmi.NotBoundException;
+import java.rmi.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
 

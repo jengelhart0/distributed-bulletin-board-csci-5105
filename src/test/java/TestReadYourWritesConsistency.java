@@ -67,11 +67,11 @@ public class TestReadYourWritesConsistency extends ReadYourWritesClientSetup {
 //        Thread.sleep(5000);
 
         testClient.initializeRemoteCommunication(testServerIp, serverPorts.get(1), serverInterfaceName);
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            LOGGER.log(Level.WARNING, "Thread interrupting while sleeping in testReadYourWritesSingleClient.");
-        }
+//        try {
+//            Thread.sleep(1000);
+//        } catch (InterruptedException e) {
+//            LOGGER.log(Level.WARNING, "Thread interrupting while sleeping in testReadYourWritesSingleClient.");
+//        }
         System.out.println("testClient is at " + testClient.getId());
         List<Message> results = testClient.retrieve(
                 new Message(testProtocol1, testProtocol1.getRetrieveAllByClientQuery(testClient.getId()), true));

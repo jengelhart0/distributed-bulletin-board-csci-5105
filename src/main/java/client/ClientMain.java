@@ -296,6 +296,7 @@ public class ClientMain {
         }
 
         for (int i = 0; i < clients.size(); i++) {
+//            System.out.println("NUM active threads ClientMain " + java.lang.Thread.activeCount());
             for(String publication: publications) {
                 clients.get(i).publish(new Message(protocol, publication + Integer.toString(i), false));
             }
@@ -304,8 +305,11 @@ public class ClientMain {
         Thread.sleep(10000);
 
         boolean allPassed = true;
-        for (Client client: clients) {
+        Client client;
+        for (int i = 0; i < clients.size(); i++) {
+            client = clients.get(i);
             if (client.getCurrentMessageFeed().isEmpty()) {
+                System.out.println("testHighLoad: client " + String.valueOf(i) + " message feed was empty when checked");
                 allPassed = false;
                 client.terminateClient();
                 break;

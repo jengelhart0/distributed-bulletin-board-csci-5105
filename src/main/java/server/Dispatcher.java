@@ -11,6 +11,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.concurrent.Executors.newCachedThreadPool;
+import static java.util.concurrent.Executors.newFixedThreadPool;
 
 class Dispatcher {
     private static final Logger LOGGER = Logger.getLogger( Dispatcher.class.getName() );
@@ -51,7 +52,8 @@ class Dispatcher {
     }
 
     private void createClientTaskExecutor() {
-        this.clientTaskExecutor = newCachedThreadPool();
+//        System.out.println("NUM procs avail: " + String.valueOf(Runtime.getRuntime().availableProcessors()));
+        this.clientTaskExecutor = newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     }
 
     private void startSubscriptionPullScheduler() {

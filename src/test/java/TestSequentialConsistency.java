@@ -25,11 +25,11 @@ public class TestSequentialConsistency extends SequentialClientSetup {
             String port2 = testClient2.getServer().getThisServersIpPortString().split(testProtocol1.getDelimiter())[1];
             String port3 = testClient3.getServer().getThisServersIpPortString().split(testProtocol1.getDelimiter())[1];
 
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-
-            }
+//            try {
+//                Thread.sleep(500);
+//            } catch (InterruptedException e) {
+//
+//            }
             testClient1.publish(new Message(
                     testProtocol1,
                     ";non-reply testClient1 at server on port" + port1,
@@ -44,14 +44,14 @@ public class TestSequentialConsistency extends SequentialClientSetup {
                     ";non-reply testClient3 at server on port" + port3,
                     false));
 
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                LOGGER.log(Level.WARNING,
-                        "Interrupted while waiting to give publications a chance to " +
-                                "propagate in testSequentialConsistencySimple");
-                assertTrue(false);
-            }
+//            try {
+//                Thread.sleep(500);
+//            } catch (InterruptedException e) {
+//                LOGGER.log(Level.WARNING,
+//                        "Interrupted while waiting to give publications a chance to " +
+//                                "propagate in testSequentialConsistencySimple");
+//                assertTrue(false);
+//            }
 
             System.out.println("TestSequential: Attempting to retrieve from clients now");
             List<Message> results3 = testClient3.retrieve(new Message(testProtocol1, ";", true));
