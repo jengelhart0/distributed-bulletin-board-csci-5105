@@ -115,7 +115,7 @@ class PeerListManager {
     private void discoverReplicatedPeers() throws IOException, NotBoundException {
         Set<String> peers = registryServerLiaison.getListOfServers();
         if(peers.size() >= numExpectedServers) {
-            System.out.println(thisServer.getPort() + ": discovered list of servers: " + peers.toString());
+//            System.out.println(thisServer.getPort() + ": discovered list of servers: " + peers.toString());
             peers.remove(serverIp.getHostAddress() + registryServerLiaison.getDelimiter() + serverPort);
             findAndJoinCoordinatorIfUnknown(peers);
             joinDiscoveredPeers(peers);
@@ -125,11 +125,11 @@ class PeerListManager {
     }
 
     private void findAndJoinCoordinatorIfUnknown(Set<String> replicatedServers) throws IOException, NotBoundException {
-        System.out.println(thisServer.getPort() + ": about to grab lock in findAndJoinCoordinator");
+//        System.out.println(thisServer.getPort() + ": about to grab lock in findAndJoinCoordinator");
         coordinatorLock.lock();
         try {
             if(coordinator == null) {
-                System.out.println(thisServer.getPort() + ": coordinator null, looking for it");
+//                System.out.println(thisServer.getPort() + ": coordinator null, looking for it");
                 String newCoordinatorLocation = thisServer.getThisServersIpPortString();
                 for (String server : replicatedServers) {
                     if (server.compareTo(newCoordinatorLocation) < 0) {
@@ -138,7 +138,7 @@ class PeerListManager {
                 }
                 registerCoordinator(newCoordinatorLocation);
             }
-            System.out.println(thisServer.getPort() + " signaling the coordinator is set to " + coordinator.getThisServersIpPortString());
+//            System.out.println(thisServer.getPort() + " signaling the coordinator is set to " + coordinator.getThisServersIpPortString());
             coordinatorSet.signalAll();
         } finally {
             coordinatorLock.unlock();
@@ -299,8 +299,8 @@ class PeerListManager {
 
     void publishToAllPeers(Message publication)  throws RemoteException {
         for(Client client: clientsForReplicatedPeers.values()) {
-            System.out.println("Publishing to peer for " + client.getServer().getThisServersIpPortString() + "\n\t"
-            + "message " + publication.asRawMessage());
+//            System.out.println("Publishing to peer for " + client.getServer().getThisServersIpPortString() + "\n\t"
+//            + "message " + publication.asRawMessage());
             if (!client.publish(publication)) {
                 throw new RemoteException("publishToPeer: Tried to publish to a peer with no client in " +
                         "clientsForReplicatedPeers!");

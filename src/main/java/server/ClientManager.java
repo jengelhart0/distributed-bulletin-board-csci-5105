@@ -110,7 +110,6 @@ public class ClientManager implements CommunicationManager {
 
     @Override
     public void publish(Message message, MessageStore store) {
-        System.out.println(clientId);
 //        Removed, as this was put in consistency policy instead
 //        message.ensureInternalsExistAndRegenerateQuery(clientId);
         synchronized (publicationLock) {
@@ -166,12 +165,13 @@ public class ClientManager implements CommunicationManager {
         try (DatagramSocket deliverySocket = new DatagramSocket()) {
             byte[] messageBuffer;
             String paddedPublication;
+            int i = 0;
             for (String publication: publicationsToDeliver) {
                 paddedPublication = this.protocol.padMessage(publication);
                 messageBuffer = paddedPublication.getBytes();
                 DatagramPacket packetToSend = new DatagramPacket(
                         messageBuffer, messageSize, InetAddress.getByName(clientIp), this.clientPort);
-
+                System.out.println("in CM: sending " + i++ + " of " + publicationsToDeliver.size());
                 deliverySocket.send(packetToSend);
             }
         } catch (IOException e) {

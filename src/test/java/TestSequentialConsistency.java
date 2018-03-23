@@ -4,6 +4,7 @@ import org.junit.Test;
 
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
@@ -59,20 +60,67 @@ public class TestSequentialConsistency extends SequentialClientSetup {
             List<Message> results2 = testClient2.retrieve(new Message(testProtocol1, ";", true));
 
             assertTrue((results1.size() == results2.size()) && (results2.size() == results3.size()));
-
-
+            for(int i = 0; i < results1.size(); i++) {
+                assertTrue(
+                        results1.get(i).asRawMessage()
+                        .equals(results2.get(i).asRawMessage())
+                        && results2.get(i).asRawMessage()
+                        .equals(results3.get(i).asRawMessage())
+                );
+            }
         } else {
             LOGGER.log(Level.WARNING, "Need at least 3 for numTestServers for test testSequentialConsistencySimple");
             assertTrue(false);
         }
-
-
-
-
     }
 
-    public void simulateRandomNetworkDelay() {
-        int randomDelay = ThreadLocalRandom.current().nextInt(0, 2500);
+    @Test
+    public void testSequentialConsistencyComplex() throws RemoteException, NotBoundException {
+        for(int i = 0; i < 8; i++) {
+            for(Client client: clients) {
+                simulateRandomNetworkDelay(75);
+                // the modulo and integer division simulate choices to post original message or to reply
+                if(i % 3 == 0) {
+                    client.publish(new Message(
+                            testProtocol1,
+                            ";test message " + i + " from client at port " + client.getListenPort(),
+                            false));
+                } else {
+                    client.publish(new Message(
+                            testProtocol1,
+                            i / 3 + ";test message " + i + " from client at port " + client.getListenPort(),
+                            false));
+
+                }
+            }
+        }
+        List<List<Message>> results = new LinkedList<>();
+        for(Client client: clients) {
+            simulateRandomNetworkDelay(25);
+            results.add(client.retrieve(new Message(testProtocol1, ";", true)));
+        }
+
+        int expectedSize = results.get(0).size();
+
+        for(List<Message> result: results) {
+            assertTrue(result.size() == expectedSize);
+        }
+
+        List<Message> standard = results.get(0);
+        for(int i = 0; i < expectedSize; i++) {
+            String expected = standard.get(i).asRawMessage();
+//            System.out.println("expected: " + expected);
+            for(int j = 1; j < results.size(); j++) {
+//                System.out.println("actual: " + results.get(j).get(i).asRawMessage());
+                assertTrue(results.get(j).get(i)
+                        .asRawMessage()
+                        .equals(expected));
+            }
+        }
+    }
+
+    public void simulateRandomNetworkDelay(int maxDelay) {
+        int randomDelay = ThreadLocalRandom.current().nextInt(0, maxDelay);
         try {
             Thread.sleep(randomDelay);
         } catch (InterruptedException e) {

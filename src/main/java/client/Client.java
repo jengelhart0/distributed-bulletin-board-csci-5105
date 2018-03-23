@@ -118,6 +118,7 @@ public class Client implements Runnable {
                 List<Message> matches = listener.consumeMatchesIfAllReceivedFor(query);
                 while(matches == null) {
                     try {
+                        System.out.println("Client " + id + " about to wait for retrieve matches");
                         matchesForPendingQueryReceived.await();
                     } catch (InterruptedException e) {
                         LOGGER.log(Level.SEVERE, "Client " + getId() +

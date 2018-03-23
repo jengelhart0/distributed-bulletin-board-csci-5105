@@ -7,7 +7,7 @@ import java.util.Comparator;
 public class MessageIdComparator implements Comparator<String> {
     Protocol protocol;
 
-    MessageIdComparator(Protocol protocol) {
+    public MessageIdComparator(Protocol protocol) {
         this.protocol = protocol;
     }
 
