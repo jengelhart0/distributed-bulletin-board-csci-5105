@@ -51,38 +51,38 @@ public class ClientListener extends TcpListener {
     @Override
     public void run() {
         int messageSize = protocol.getMessageSize();
-
         try {
-            super.messageSocket = listenSocket.accept();
-            messageSocket.setKeepAlive(true);
-            messageSocket.setReceiveBufferSize(messageSocket.getReceiveBufferSize() * 2);
-            messageIn = new BufferedReader(
-                    new InputStreamReader(messageSocket.getInputStream()));
-
             while (shouldThreadContinue()) {
-//                System.out.println("Client about to wait for message;");
-                Message newMessage = getMessageFromRemote();
-//                System.out.println("Client received message" + newMessage.asRawMessage());
-//                System.out.println("\tChecking if received message is client id message  " + newMessage.asRawMessage());
-                String possibleClientId = newMessage.extractIdIfThisIsIdMessage();
-                if (!possibleClientId.isEmpty()) {
-                    setReceivedIdAndSignalClient(possibleClientId);
-                } else if(!feedManager.handleRetrieveNotificationIfThisIsOne(newMessage)) {
-                    feedManager.handle(newMessage);
-                }
+                listenForRemoteMessage();
             }
-        } catch (SocketException e) {
-            if (!shouldThreadContinue()) {
-                LOGGER.log(Level.FINE, "ClientListener gracefully exiting after being asked to stop.");
-            } else {
-                LOGGER.log(Level.WARNING, "ClientListener failed to receive incoming message: " + e.toString());
-                e.printStackTrace();
-            }
-        } catch (IOException | IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "ClientListener failed to receive incoming message: " + e.toString());
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "ClientListener failed to receive message or initializeMessageSocketIfNeeded" +
+                    ": ");
             e.printStackTrace();
         } finally {
+            System.out.println("ClientListener in finally block");
             closeSockets();
+        }
+    }
+
+    private void listenForRemoteMessage() throws IOException {
+        try {
+            initializeMessageSocketIfNeeded();
+//                System.out.println("Client about to wait for message;");
+//                System.out.println("Waiting for message in client " + receivedClientId + ", message socket = " + messageSocket);
+            Message newMessage = getMessageFromRemote();
+//                System.out.println("Got message in client " + receivedClientId + ": " + newMessage.asRawMessage());
+//                System.out.println("Client received message" + newMessage.asRawMessage());
+//                System.out.println("\tChecking if received message is client id message  " + newMessage.asRawMessage());
+            String possibleClientId = newMessage.extractIdIfThisIsIdMessage();
+            if (!possibleClientId.isEmpty()) {
+                setReceivedIdAndSignalClient(possibleClientId);
+            } else if (!feedManager.handleRetrieveNotificationIfThisIsOne(newMessage)) {
+                feedManager.handle(newMessage);
+            }
+        } catch (SocketException e) {
+            LOGGER.log(Level.WARNING, "ClientListener didn't receive incoming message (could be error or could" +
+                    "be result of closing socket to switch servers: " + e.toString());
         }
     }
 

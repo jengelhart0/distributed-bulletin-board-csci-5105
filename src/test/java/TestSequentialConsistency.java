@@ -76,7 +76,7 @@ public class TestSequentialConsistency extends SequentialClientSetup {
 
     @Test
     public void testSequentialConsistencyComplex() throws RemoteException, NotBoundException {
-        for(int i = 0; i < 5; i++) {
+        for(int i = 0; i < 15; i++) {
             for(Client client: clients) {
                 simulateRandomNetworkDelay(5);
                 // the modulo and integer division simulate choices to post original message or to reply

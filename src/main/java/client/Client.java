@@ -70,7 +70,7 @@ public class Client implements Runnable {
     }
 
     public void initializeRemoteCommunication(String remoteHost, int remoteServerPort, String communicateName)
-            throws RemoteException, NotBoundException {
+            throws IOException, NotBoundException {
         this.remoteHost = remoteHost;
         this.remoteServerPort = remoteServerPort;
         this.communicateName = communicateName;
@@ -79,6 +79,8 @@ public class Client implements Runnable {
         if (!join()) {
             cleanup();
         }
+        System.out.println("Client " + id + " calling initializingMessageSocketIfNeeded()");
+        this.listener.initializeMessageSocketIfNeeded();
     }
 
     private void establishRemoteObject() throws RemoteException, NotBoundException {
@@ -183,6 +185,7 @@ public class Client implements Runnable {
                 case LEAVE:
                     this.communicate.Leave(address, this.listenPort);
                     this.communicate = null;
+                    this.listener.resetMessageSocket();
                     return true;
                 default:
                     throw new IllegalArgumentException(

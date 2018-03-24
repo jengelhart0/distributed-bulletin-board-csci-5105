@@ -2,6 +2,7 @@ import client.Client;
 import message.Message;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
@@ -16,7 +17,7 @@ public class TestReadYourWritesConsistency extends ReadYourWritesClientSetup {
     private static final Logger LOGGER = Logger.getLogger( TestReadYourWritesConsistency.class.getName() );
 
     @Test
-    public void testSingleClientMoveAmongServers() throws RemoteException, NotBoundException  {
+    public void testSingleClientMoveAmongServers() throws IOException, NotBoundException  {
         List<Integer> serverPorts = new ArrayList<>(replicatedServers.keySet());
 
         Client[] singleClientArray = new Client[]{super.uninitializedClients[0]};
@@ -29,7 +30,7 @@ public class TestReadYourWritesConsistency extends ReadYourWritesClientSetup {
     }
 
     @Test
-    public void testMultipleClientsMoveAmongServers() throws RemoteException, NotBoundException  {
+    public void testMultipleClientsMoveAmongServers() throws IOException, NotBoundException  {
         List<Integer> serverPorts = new ArrayList<>(replicatedServers.keySet());
         makeAllJoinRandomServers(uninitializedClients, serverPorts);
         makeAllLeave(uninitializedClients);
@@ -39,7 +40,7 @@ public class TestReadYourWritesConsistency extends ReadYourWritesClientSetup {
     }
 
     private void makeAllJoinRandomServers(Client[] clients, List<Integer> serverPorts)
-            throws RemoteException, NotBoundException {
+            throws IOException, NotBoundException {
 
         int numPorts = serverPorts.size();
 
@@ -57,22 +58,23 @@ public class TestReadYourWritesConsistency extends ReadYourWritesClientSetup {
     }
 
     @Test
-    public void testReadYourWritesSingleClient() throws RemoteException, NotBoundException {
+    public void testReadYourWritesSingleClient() throws IOException, NotBoundException {
         Client testClient = uninitializedClients[0];
         testClient.initializeRemoteCommunication(testServerIp, serverPorts.get(0), serverInterfaceName);
         String testMessage = ";my non-reply test content 1";
         testClient.publish(new Message(testProtocol1, testMessage, false));
+        System.out.println("testClient about to leave");
         testClient.leave();
 
 //        Thread.sleep(5000);
-
+        System.out.println("testClient establishing remote communication elsewhere");
         testClient.initializeRemoteCommunication(testServerIp, serverPorts.get(1), serverInterfaceName);
 //        try {
 //            Thread.sleep(1000);
 //        } catch (InterruptedException e) {
 //            LOGGER.log(Level.WARNING, "Thread interrupting while sleeping in testReadYourWritesSingleClient.");
 //        }
-        System.out.println("testClient is at " + testClient.getId());
+        System.out.println("testClient is at " + testClient.getId() + " entering retrieve()");
         List<Message> results = testClient.retrieve(
                 new Message(testProtocol1, testProtocol1.getRetrieveAllByClientQuery(testClient.getId()), true));
 

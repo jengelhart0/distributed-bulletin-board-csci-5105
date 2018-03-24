@@ -118,8 +118,7 @@ public class ClientManager implements CommunicationManager {
     public void retrieve(Message queryMessage, MessageStore store) {
         Set<String> toDeliver = getSingleQueryMatches(queryMessage, store);
         int numRetrieved = toDeliver.size();
-        System.out.println("Retrieving query for client " + clientId + " result " + queryMessage.asRawMessage() + " results:");
-        System.out.println(toDeliver.toString());
+        System.out.println("Delivering to client " + clientId + " " + toDeliver.toString());
         String retrieveNotification = protocol.buildRetrieveNotification(queryMessage.asRawMessage(), numRetrieved);
         deliverControlMessage(new Message(protocol, retrieveNotification, true));
         deliverPublications(toDeliver, protocol.getMessageSize());
@@ -179,12 +178,16 @@ public class ClientManager implements CommunicationManager {
     private void deliverPublications(Set<String> publicationsToDeliver, int messageSize) {
         String paddedPublication;
         try {
-            for (String publication: publicationsToDeliver) {
-                paddedPublication = this.protocol.padMessage(publication);
-//                messageBuffer = paddedPublication.getBytes();
-                writer.write(paddedPublication);
-                writer.newLine();
-                writer.flush();
+            if(!clientLeft) {
+                for (String publication : publicationsToDeliver) {
+                    paddedPublication = this.protocol.padMessage(publication);
+                    //                messageBuffer = paddedPublication.getBytes();
+                    writer.write(paddedPublication);
+                    writer.newLine();
+                    writer.flush();
+                }
+            } else {
+                writer.close();
             }
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "Failed to send matched publications in ClientManager: " + e.toString());

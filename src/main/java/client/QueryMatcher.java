@@ -43,8 +43,8 @@ public class QueryMatcher {
             if (isAMatch(message, query)) {
                 queryMatches.get(query).add(message);
                 numReceivedForQuery.put(query, numReceivedForQuery.get(query) + 1);
-                System.out.println("in CL: received " + numReceivedForQuery.get(query)
-                    + " of " + numIncomingForQuery.get(query));
+//                System.out.println("in CL: received " + numReceivedForQuery.get(query)
+//                    + " of " + numIncomingForQuery.get(query));
                 signalIfAllMatchesReceivedFor(query);
                 return true;
             }

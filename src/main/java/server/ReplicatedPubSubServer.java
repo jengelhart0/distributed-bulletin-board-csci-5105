@@ -251,7 +251,6 @@ public class ReplicatedPubSubServer implements Communicate {
         if(existingClientId == null) {
             return generateAndReturnClientId(ip, port);
         } else {
-            System.out.println("Need to enforce consistency");
             dispatcher.setClientIdFor(ip, port, protocol.stripPadding(existingClientId));
             return existingClientId;
         }
