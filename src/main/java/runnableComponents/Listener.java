@@ -18,6 +18,8 @@ public abstract class Listener extends Scheduler {
 
     public void listenAt(int listenPort, InetAddress localAddress) throws SocketException {
         this.listenSocket = new DatagramSocket(listenPort);
+        this.listenSocket.setReceiveBufferSize(listenSocket.getReceiveBufferSize() * 2);
+        System.out.println("Listen socket recv buffer size " + listenSocket.getReceiveBufferSize());
 
 //        while(this.listenSocket == null) {
 //            try {

@@ -76,9 +76,9 @@ public class TestSequentialConsistency extends SequentialClientSetup {
 
     @Test
     public void testSequentialConsistencyComplex() throws RemoteException, NotBoundException {
-        for(int i = 0; i < 8; i++) {
+        for(int i = 0; i < 15; i++) {
             for(Client client: clients) {
-                simulateRandomNetworkDelay(75);
+                simulateRandomNetworkDelay(5);
                 // the modulo and integer division simulate choices to post original message or to reply
                 if(i % 3 == 0) {
                     client.publish(new Message(
@@ -96,7 +96,7 @@ public class TestSequentialConsistency extends SequentialClientSetup {
         }
         List<List<Message>> results = new LinkedList<>();
         for(Client client: clients) {
-            simulateRandomNetworkDelay(25);
+            simulateRandomNetworkDelay(5);
             results.add(client.retrieve(new Message(testProtocol1, ";", true)));
         }
 

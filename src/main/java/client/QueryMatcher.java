@@ -19,6 +19,8 @@ public class QueryMatcher {
     private final Lock pendingQueryLock;
     private final Condition matchesForPendingQueryReceived;
 
+    private final Object testLockOnRetrieved = new Object();
+
     QueryMatcher(Protocol protocol, Lock pendingQueryLock, Condition matchesForPendingQueryReceived) {
         this.protocol = protocol;
         this.pendingQueryLock = pendingQueryLock;
@@ -79,13 +81,13 @@ public class QueryMatcher {
     }
 
     private void signalIfAllMatchesReceivedFor(String query) {
-        if(allMatchesReceivedFor(query)) {
-            pendingQueryLock.lock();
-            try {
+        pendingQueryLock.lock();
+        try {
+            if(allMatchesReceivedFor(query)) {
                 matchesForPendingQueryReceived.signalAll();
-            } finally {
-                pendingQueryLock.unlock();
             }
+        } finally {
+            pendingQueryLock.unlock();
         }
     }
 

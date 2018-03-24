@@ -176,7 +176,7 @@ public class Client implements Runnable {
                 case JOIN:
                     boolean isCallSuccessful = this.communicate.Join(address, this.listenPort, this.id, this.previousServer);
                     if (isCallSuccessful) {
-                        ensureThisHasId();
+//                        ensureThisHasId();
                     }
                     this.previousServer = remoteHost + protocol.getDelimiter() + remoteServerPort;
                     return isCallSuccessful;

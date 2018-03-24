@@ -163,15 +163,17 @@ public class ClientManager implements CommunicationManager {
                                      int messageSize) {
 
         try (DatagramSocket deliverySocket = new DatagramSocket()) {
+            deliverySocket.setSendBufferSize(deliverySocket.getSendBufferSize() * 2);
             byte[] messageBuffer;
             String paddedPublication;
-            int i = 0;
+            int i = 1;
             for (String publication: publicationsToDeliver) {
                 paddedPublication = this.protocol.padMessage(publication);
                 messageBuffer = paddedPublication.getBytes();
                 DatagramPacket packetToSend = new DatagramPacket(
                         messageBuffer, messageSize, InetAddress.getByName(clientIp), this.clientPort);
-                System.out.println("in CM: sending " + i++ + " of " + publicationsToDeliver.size());
+                System.out.println("\tin CM " + clientId + ": sending " + i++ + " of " + publicationsToDeliver.size());
+
                 deliverySocket.send(packetToSend);
             }
         } catch (IOException e) {
