@@ -26,9 +26,9 @@ public abstract class TcpListener extends Scheduler {
     public void initializeMessageSocketIfNeeded() throws IOException {
         synchronized (socketLock) {
             if (messageSocket == null) {
-                System.out.println("Waiting for socket request from remote");
+//                System.out.println("Waiting for socket request from remote");
                 messageSocket = listenSocket.accept();
-                System.out.println("Accepted new socket request from remote in initializeMessageSocketIfNeeded");
+//                System.out.println("Accepted new socket request from remote in initializeMessageSocketIfNeeded");
                 messageSocket.setKeepAlive(true);
                 messageSocket.setReceiveBufferSize(messageSocket.getReceiveBufferSize() * 2);
                 messageIn = new BufferedReader(
@@ -47,19 +47,9 @@ public abstract class TcpListener extends Scheduler {
         }
     }
 
-    public abstract void forceCloseSockets() throws IOException;
+    public abstract void forceCloseSocket();
 
     protected String receiveMessage() throws IOException {
         return messageIn.readLine();
-    }
-
-    protected void closeSockets() {
-        try {
-            this.listenSocket.close();
-            this.messageIn.close();
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Failed to close sockets in TcpListener:");
-            e.printStackTrace();
-        }
     }
 }

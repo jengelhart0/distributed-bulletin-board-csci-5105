@@ -21,7 +21,7 @@ public class FeedManager {
 
     void handle(Message newMessage) {
         if(!queryMatcher.addIfMatchesAQuery(newMessage.asRawMessage())) {
-            System.out.println("in CL: received non-match message");
+//            System.out.println("in CL: received non-match message");
             this.messageFeed.add(newMessage);
         }
     }

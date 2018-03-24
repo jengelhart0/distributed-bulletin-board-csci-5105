@@ -4,10 +4,7 @@ import runnableComponents.TcpListener;
 import message.Message;
 import message.Protocol;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.DatagramPacket;
 import java.net.SocketException;
 import java.util.*;
 import java.util.concurrent.locks.Condition;
@@ -44,8 +41,13 @@ public class ClientListener extends TcpListener {
     }
 
     @Override
-    public void forceCloseSockets() throws IOException {
-        closeSockets();
+    public void forceCloseSocket() {
+        try {
+            this.listenSocket.close();
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Failed to close listen socket in TcpListener:");
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -60,8 +62,8 @@ public class ClientListener extends TcpListener {
                     ": ");
             e.printStackTrace();
         } finally {
-            System.out.println("ClientListener in finally block");
-            closeSockets();
+//            System.out.println("ClientListener in finally block");
+            forceCloseSocket();
         }
     }
 
@@ -81,8 +83,8 @@ public class ClientListener extends TcpListener {
                 feedManager.handle(newMessage);
             }
         } catch (SocketException e) {
-            LOGGER.log(Level.WARNING, "ClientListener didn't receive incoming message (could be error or could" +
-                    "be result of closing socket to switch servers: " + e.toString());
+//            LOGGER.log(Level.WARNING, "ClientListener didn't receive incoming message (could be error or could" +
+//                    "be result of closing socket to switch servers: " + e.toString());
         }
     }
 

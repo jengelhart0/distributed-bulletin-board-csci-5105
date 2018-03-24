@@ -79,7 +79,7 @@ public class Client implements Runnable {
         if (!join()) {
             cleanup();
         }
-        System.out.println("Client " + id + " calling initializingMessageSocketIfNeeded()");
+//        System.out.println("Client " + id + " calling initializingMessageSocketIfNeeded()");
         this.listener.initializeMessageSocketIfNeeded();
     }
 
@@ -120,7 +120,7 @@ public class Client implements Runnable {
                 List<Message> matches = listener.consumeMatchesIfAllReceivedFor(query);
                 while(matches == null) {
                     try {
-                        System.out.println("Client " + id + " about to wait for retrieve matches");
+//                        System.out.println("Client " + id + " about to wait for retrieve matches");
                         matchesForPendingQueryReceived.await();
                     } catch (InterruptedException e) {
                         LOGGER.log(Level.SEVERE, "Client " + getId() +
@@ -264,12 +264,12 @@ public class Client implements Runnable {
     private void cleanup() {
         leave();
         this.listener.tellThreadToStop();
-        try {
-            this.listener.forceCloseSockets();
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Failed to force close listener sockers at cleanup");
-            e.printStackTrace();
-        }
+//        try {
+        this.listener.forceCloseSocket();
+//        } catch (IOException e) {
+//            LOGGER.log(Level.SEVERE, "Failed to force close listener sockers at cleanup");
+//            e.printStackTrace();
+//        }
     }
 
     public Communicate getServer() {
