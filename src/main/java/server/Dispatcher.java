@@ -4,6 +4,7 @@ import message.Message;
 import message.Protocol;
 import runnableComponents.Scheduler;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -26,15 +27,15 @@ class Dispatcher {
 
     private MessageStore store;
 
-    Dispatcher(Protocol protocol, MessageStore store, boolean shouldRetrieveMatchesAutomatically) {
+    Dispatcher(Protocol protocol, MessageStore store, boolean shouldRetrieveMatchesAutomatically) throws IOException {
         this.protocol = protocol;
         this.store = store;
         this.shouldRetrieveMatchesAutomatically = shouldRetrieveMatchesAutomatically;
         this.clientToClientManager = new ConcurrentHashMap<>();
         // manages publications from clients connected to other servers
-        clientToClientManager.put(
-                "clientElsewhere" + protocol.getDelimiter() + "-1",
-                new ClientManager("clientElsewhere", -1, protocol));
+//        clientToClientManager.put(
+//                "clientElsewhere" + protocol.getDelimiter() + "-1",
+//                new ClientManager("clientElsewhere", -1, protocol));
     }
 
     void initialize() {
@@ -77,7 +78,7 @@ class Dispatcher {
         new Thread(subscriptionPullScheduler).start();
     }
 
-    public void addNewClient(String ip, int port) {
+    public void addNewClient(String ip, int port) throws IOException {
         if(!clientToClientManager.containsKey(ServerUtils.getIpPortString(ip, port, protocol))) {
             CommunicationManager newClientManager = new ClientManager(ip, port, this.protocol);
             clientToClientManager.put(ServerUtils.getIpPortString(ip, port, protocol), newClientManager);

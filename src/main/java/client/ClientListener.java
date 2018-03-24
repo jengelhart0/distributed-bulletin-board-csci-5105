@@ -1,10 +1,12 @@
 package client;
 
-import runnableComponents.Listener;
+import runnableComponents.TcpListener;
 import message.Message;
 import message.Protocol;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.DatagramPacket;
 import java.net.SocketException;
 import java.util.*;
@@ -13,7 +15,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class ClientListener extends Listener {
+public class ClientListener extends TcpListener {
     private static final Logger LOGGER = Logger.getLogger(ClientListener.class.getName());
 
     private FeedManager feedManager;
@@ -42,19 +44,24 @@ public class ClientListener extends Listener {
     }
 
     @Override
-    public void forceCloseSocket() {
-        closeListenSocket();
+    public void forceCloseSockets() throws IOException {
+        closeSockets();
     }
 
     @Override
     public void run() {
         int messageSize = protocol.getMessageSize();
 
-        DatagramPacket packetToReceive = new DatagramPacket(new byte[messageSize], messageSize);
         try {
+            super.messageSocket = listenSocket.accept();
+            messageSocket.setKeepAlive(true);
+            messageSocket.setReceiveBufferSize(messageSocket.getReceiveBufferSize() * 2);
+            messageIn = new BufferedReader(
+                    new InputStreamReader(messageSocket.getInputStream()));
+
             while (shouldThreadContinue()) {
 //                System.out.println("Client about to wait for message;");
-                Message newMessage = getMessageFromRemote(packetToReceive);
+                Message newMessage = getMessageFromRemote();
 //                System.out.println("Client received message" + newMessage.asRawMessage());
 //                System.out.println("\tChecking if received message is client id message  " + newMessage.asRawMessage());
                 String possibleClientId = newMessage.extractIdIfThisIsIdMessage();
@@ -75,13 +82,13 @@ public class ClientListener extends Listener {
             LOGGER.log(Level.WARNING, "ClientListener failed to receive incoming message: " + e.toString());
             e.printStackTrace();
         } finally {
-            closeListenSocket();
+            closeSockets();
         }
     }
 
-    private Message getMessageFromRemote(DatagramPacket packetToReceive) throws IOException {
-        super.receivePacket(packetToReceive);
-        String rawMessage = new String(packetToReceive.getData(), 0, packetToReceive.getLength());
+    private Message getMessageFromRemote() throws IOException {
+        String rawMessage = super.receiveMessage();
+//        String rawMessage = new String(packetToReceive.getData(), 0, packetToReceive.getLength());
         return new Message(protocol, rawMessage, false);
     }
 

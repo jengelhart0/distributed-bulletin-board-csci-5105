@@ -1,6 +1,6 @@
 package server;
 
-import runnableComponents.Listener;
+import runnableComponents.UdpListener;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -8,14 +8,14 @@ import java.net.SocketException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class HeartbeatListener extends Listener {
-    private static final Logger LOGGER = Logger.getLogger( HeartbeatListener.class.getName() );
+public class HeartbeatUdpListener extends UdpListener {
+    private static final Logger LOGGER = Logger.getLogger( HeartbeatUdpListener.class.getName() );
 
     private int messageSize;
 
 //    private Thread heartbeatThread;
 
-    HeartbeatListener(int messageSize) {
+    HeartbeatUdpListener(int messageSize) {
         super();
         this.messageSize = messageSize;
     }
@@ -41,13 +41,13 @@ public class HeartbeatListener extends Listener {
             }
         } catch (SocketException e) {
             if (!shouldThreadContinue()) {
-                LOGGER.log(Level.FINE, "HeartbeatListener gracefully exiting after being asked to stop.");
+                LOGGER.log(Level.FINE, "HeartbeatUdpListener gracefully exiting after being asked to stop.");
             } else {
-                LOGGER.log(Level.WARNING, "HeartbeatListener failed to receive incoming message: " + e.toString());
+                LOGGER.log(Level.WARNING, "HeartbeatUdpListener failed to receive incoming message: " + e.toString());
                 e.printStackTrace();
             }
         } catch (IOException | IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "HeartbeatListener failed to receive incoming message: " + e.toString());
+            LOGGER.log(Level.WARNING, "HeartbeatUdpListener failed to receive incoming message: " + e.toString());
             e.printStackTrace();
         } finally {
             closeListenSocket();

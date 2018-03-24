@@ -4,6 +4,7 @@ import org.junit.Before;
 import server.ReplicatedPubSubServer;
 import server.SequentialConsistency;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -60,7 +61,7 @@ public class SequentialServerSetup {
 
 
     @Before
-    public void setUpReplicatedServers() throws UnknownHostException {
+    public void setUpReplicatedServers() throws IOException {
 
         int nextServerPort = 1099;
         int nextHearbeatPort = 9453;

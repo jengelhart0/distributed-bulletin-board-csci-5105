@@ -57,7 +57,7 @@ public class Client implements Runnable {
         new Thread(this).start();
     }
 
-    private void startMessageListener() throws SocketException {
+    private void startMessageListener() throws IOException {
         this.listener = new ClientListener(this.protocol, idReceivedByListenerLock, idHasBeenSet,
                 pendingQueryLock, matchesForPendingQueryReceived);
         this.listener.listenAt(this.listenPort, this.localAddress);
@@ -176,7 +176,7 @@ public class Client implements Runnable {
                 case JOIN:
                     boolean isCallSuccessful = this.communicate.Join(address, this.listenPort, this.id, this.previousServer);
                     if (isCallSuccessful) {
-//                        ensureThisHasId();
+                        ensureThisHasId();
                     }
                     this.previousServer = remoteHost + protocol.getDelimiter() + remoteServerPort;
                     return isCallSuccessful;
@@ -261,7 +261,12 @@ public class Client implements Runnable {
     private void cleanup() {
         leave();
         this.listener.tellThreadToStop();
-        this.listener.forceCloseSocket();
+        try {
+            this.listener.forceCloseSockets();
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Failed to force close listener sockers at cleanup");
+            e.printStackTrace();
+        }
     }
 
     public Communicate getServer() {

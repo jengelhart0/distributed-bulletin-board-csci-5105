@@ -36,7 +36,7 @@ public class ReplicatedPubSubServer implements Communicate {
     private PeerListManager peerListManager;
     private ConsistencyPolicy consistencyPolicy;
 
-    private ReplicatedPubSubServer(Builder builder) {
+    private ReplicatedPubSubServer(Builder builder) throws IOException {
 
         this.name = builder.name;
         this.protocol = builder.protocol;
@@ -172,7 +172,7 @@ public class ReplicatedPubSubServer implements Communicate {
             return this;
         }
 
-        public ReplicatedPubSubServer build() {
+        public ReplicatedPubSubServer build() throws IOException {
             return new ReplicatedPubSubServer(this);
         }
     }

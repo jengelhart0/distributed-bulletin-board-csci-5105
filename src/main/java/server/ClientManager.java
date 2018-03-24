@@ -3,10 +3,13 @@ package server;
 import message.Message;
 import message.Protocol;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.Socket;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -19,6 +22,9 @@ public class ClientManager implements CommunicationManager {
     private int clientPort;
     private String clientId;
 
+    private Socket clientMessageSocket;
+    private BufferedWriter writer;
+
     private boolean clientLeft;
 
     private Protocol protocol;
@@ -29,7 +35,7 @@ public class ClientManager implements CommunicationManager {
     private final Object subscriptionLock = new Object();
     private final Object publicationLock = new Object();
 
-    ClientManager(String clientIp, int clientPort, Protocol protocol) {
+    ClientManager(String clientIp, int clientPort, Protocol protocol) throws IOException {
         this.clientIp = clientIp;
         this.clientPort = clientPort;
         this.clientId = null;
@@ -40,6 +46,17 @@ public class ClientManager implements CommunicationManager {
 
         this.subscriptions = new LinkedList<>();
         this.publications = new ArrayList<>();
+
+        initializeClientMessageSocket();
+    }
+
+    private void initializeClientMessageSocket() throws IOException {
+        clientMessageSocket = new Socket(clientIp, clientPort);
+        clientMessageSocket.setReceiveBufferSize(clientMessageSocket.getReceiveBufferSize() * 2);
+        clientMessageSocket.setKeepAlive(true);
+        writer = new BufferedWriter(
+                new OutputStreamWriter(
+                        clientMessageSocket.getOutputStream()));
     }
 
     public Runnable task(Message message, MessageStore store, Call call) {
@@ -159,22 +176,15 @@ public class ClientManager implements CommunicationManager {
         return toDeliver;
     }
 
-    private void deliverPublications(Set<String> publicationsToDeliver,
-                                     int messageSize) {
-
-        try (DatagramSocket deliverySocket = new DatagramSocket()) {
-            deliverySocket.setSendBufferSize(deliverySocket.getSendBufferSize() * 2);
-            byte[] messageBuffer;
-            String paddedPublication;
-            int i = 1;
+    private void deliverPublications(Set<String> publicationsToDeliver, int messageSize) {
+        String paddedPublication;
+        try {
             for (String publication: publicationsToDeliver) {
                 paddedPublication = this.protocol.padMessage(publication);
-                messageBuffer = paddedPublication.getBytes();
-                DatagramPacket packetToSend = new DatagramPacket(
-                        messageBuffer, messageSize, InetAddress.getByName(clientIp), this.clientPort);
-                System.out.println("\tin CM " + clientId + ": sending " + i++ + " of " + publicationsToDeliver.size());
-
-                deliverySocket.send(packetToSend);
+//                messageBuffer = paddedPublication.getBytes();
+                writer.write(paddedPublication);
+                writer.newLine();
+                writer.flush();
             }
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "Failed to send matched publications in ClientManager: " + e.toString());

@@ -2,15 +2,14 @@ package runnableComponents;
 
 import java.io.IOException;
 import java.net.*;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public abstract class Listener extends Scheduler {
-    private static final Logger LOGGER = Logger.getLogger( Listener.class.getName() );
+public abstract class UdpListener extends Scheduler {
+    private static final Logger LOGGER = Logger.getLogger( UdpListener.class.getName() );
 
     private DatagramSocket listenSocket = null;
 
-    protected Listener() {
+    protected UdpListener() {
         super();
     }
 

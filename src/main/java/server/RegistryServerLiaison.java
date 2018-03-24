@@ -9,7 +9,7 @@ import java.util.Set;
 
 class RegistryServerLiaison {
 
-    private HeartbeatListener heartbeatListener;
+    private HeartbeatUdpListener heartbeatListener;
     private int heartbeatPort;
 
     private String serverName;
@@ -57,7 +57,7 @@ class RegistryServerLiaison {
     }
 
     private void startHeartbeat() throws IOException {
-        this.heartbeatListener = new HeartbeatListener(registryMessageSize);
+        this.heartbeatListener = new HeartbeatUdpListener(registryMessageSize);
         this.heartbeatListener.listenAt(this.heartbeatPort, this.serverIp);
         Thread heartbeatThread = new Thread(this.heartbeatListener);
 //        heartbeatListener.setThread(heartbeatThread);
