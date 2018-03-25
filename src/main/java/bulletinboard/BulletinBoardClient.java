@@ -129,21 +129,29 @@ public class BulletinBoardClient {
     }
 
     private void printPostTitle(Post postToPrint) {
-        printPost(
-                postToPrint.getMessageId(),
-                postToPrint.getTitle(),
-                "",
-                postToPrint.getPrintDepth()
-        );
+        if(postToPrint != null) {
+            printPost(
+                    postToPrint.getMessageId(),
+                    postToPrint.getTitle(),
+                    "",
+                    postToPrint.getPrintDepth()
+            );
+        } else {
+            System.out.println("That choice does not exist at the specified client");
+        }
     }
 
     private void printWholePost(Post postToPrint) {
+      if(postToPrint != null) {
         printPost(
                 postToPrint.getMessageId(),
                 postToPrint.getTitle(),
                 postToPrint.getMessage(),
                 postToPrint.getPrintDepth()
         );
+      } else {
+          System.out.println("That choice does not exist at the specified client");
+      }
     }
 
     private void printPost(int messageId, String title, String message, int depth) {
