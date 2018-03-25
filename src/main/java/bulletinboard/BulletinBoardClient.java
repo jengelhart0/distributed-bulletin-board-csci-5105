@@ -8,10 +8,15 @@ import message.Protocol;
 import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class BulletinBoardClient {
+    private static final Logger LOGGER = Logger.getLogger( BulletinBoardClient.class.getName() );
+
     private Protocol bbProtocol;
     private Client client;
+    private String communicationName;
 
     private int numMessagesToDisplay;
     private int nextToScroll;
@@ -21,20 +26,16 @@ public class BulletinBoardClient {
     private final Object readOrderLock = new Object();
 
     public BulletinBoardClient(int numMessagesToDisplay) throws IOException, NotBoundException {
-        this.bbProtocol =  new Protocol(
-                Arrays.asList("replyTo", "title"),
-                Arrays.asList(new String[]{""}, new String[]{""}),
-                ";",
-                "",
-                256);
+        this.bbProtocol = BulletinBoard.BBPROTOCOL;
         this.numMessagesToDisplay = numMessagesToDisplay;
+        this.communicationName = Communicate.NAME;
     }
 
     public void initializeClient(int nextListenPort, String serverIp, int serverPort) throws IOException, NotBoundException {
         while(this.client == null) {
             this.client = new Client(bbProtocol, nextListenPort);
         }
-        client.initializeRemoteCommunication(serverIp, serverPort, Communicate.NAME);
+        client.initializeRemoteCommunication(serverIp, serverPort, communicationName);
     }
 
     public boolean post(String title, String message) {
@@ -167,6 +168,18 @@ public class BulletinBoardClient {
         printWholePost(idToMessages.get(messageId));
     }
 
+    public void moveToServerAt(String serverIp, int serverPort) {
+        try {
+            if (client.leave()) {
+                client.initializeRemoteCommunication(serverIp, serverPort, communicationName);
+            }
+        } catch (IOException | NotBoundException e) {
+            LOGGER.log(Level.SEVERE, "moveToServerAt failed:");
+            e.printStackTrace();
+        }
+    }
 
-
+    public void terminateClient() {
+        client.terminateClient();
+    }
 }
