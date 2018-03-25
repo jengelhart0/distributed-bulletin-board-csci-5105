@@ -59,7 +59,7 @@ public class BulletinBoardClient {
         Map<Integer, Post> idToMessages = new HashMap<>();
         List<Integer> nonReplies = new LinkedList<>();
         List<Message> rawResults = client.retrieve(
-                new Message(bbProtocol, wc + bbProtocol.getDelimiter() + wc, true));
+                new Message(bbProtocol, bbProtocol.getRetrieveAllQuery(), true));
 
         int messageId, replyToId;
         Post post;
@@ -71,7 +71,9 @@ public class BulletinBoardClient {
             if (replyToId == -1) {
                 nonReplies.add(messageId);
             } else {
-                replyMap.getOrDefault(replyToId, new LinkedList<>()).add(messageId);
+                List<Integer> replies = replyMap.getOrDefault(replyToId, new LinkedList<>());
+                replies.add(messageId);
+                replyMap.put(replyToId, replies);
             }
             idToMessages.put(messageId, post);
         }
@@ -118,8 +120,10 @@ public class BulletinBoardClient {
                 printPostTitle(postToPrint);
             }
             this.nextToScroll = messageNum;
-            if(messageNum == readOrderMessages.size()) {
+            if(nextToScroll >= readOrderMessages.size()) {
                 System.out.println("END");
+            } else {
+                System.out.println(readOrderMessages.size() - nextToScroll + " MORE TO SCROLL");
             }
         }
     }
@@ -157,10 +161,23 @@ public class BulletinBoardClient {
     }
 
     public void scroll() {
+        int numToScroll = 5;
+        int numScrolled = 0;
         synchronized (readOrderLock) {
-            if (nextToScroll != -1 && nextToScroll < readOrderMessages.size()) {
+            while (nextToScroll != -1
+                    && nextToScroll < readOrderMessages.size()
+                    && numScrolled < numToScroll) {
                 printPostTitle(readOrderMessages.get(nextToScroll++));
+                numScrolled++;
+                nextToScroll++;
             }
+
+            if(nextToScroll >= readOrderMessages.size()) {
+                System.out.println("END");
+            } else {
+                System.out.println(readOrderMessages.size() - nextToScroll + " MORE TO SCROLL");
+            }
+
         }
     }
 

@@ -9,12 +9,14 @@ import java.util.Scanner;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class BulletinBoardClientMain {
+
+    private static int nextListenPort = 13888;
+
     private static void enterInteractiveBulletinBoardSession() {
         List<BulletinBoardClient> bbClients = new ArrayList<>();
-        int listenPort = 13888;
         String menu = "Welcome to the interactive mode of this Publish-Subscribe system\n" +
                 "Options:" +
-                "\n\tCreate new client:\t\t'create at <serverIp> <serverPort>'" +
+                "\n\tCreate new client:\t\t'create <serverIp> <serverPort>'" +
                 "\n\tSee client list:\t\t'list'" +
                 "\n\tRead list of messages:\t\t'<client number> read" +
                 "\n\tScroll message list:\t\t'<client number> s" +
@@ -22,7 +24,7 @@ public class BulletinBoardClientMain {
                 "\n\tPost:\t\t'<client number> post <title;message>'" +
                 "\n\tReply:\t\t'<client number> reply <replyToMessageId;title;message>'" +
                 "\n\tMove client to a different server:\t\t'<client number> move <new server IP> <new server Port>'" +
-                "\n\tAutomatically post random posts/replies to all bbClients:\t\t'testposts <num posts/replies per client>'" +
+                "\n\tAutomatically post test posts:\t\t'testposts <num posts per client>'" +
                 "\n\nSee this menu again: type 'menu'";
 
         try (Scanner reader = new Scanner(System.in)) {
@@ -30,10 +32,7 @@ public class BulletinBoardClientMain {
             String[] parsedInput;
             String firstWord;
             boolean terminate = false;
-            while(true) {
-                if(terminate) {
-                    break;
-                }
+            while(!terminate) {
                 try {
                     String input = reader.nextLine();
                     parsedInput = input.split(" ");
@@ -42,7 +41,7 @@ public class BulletinBoardClientMain {
 
                     switch (firstWord) {
                         case "create":
-                            bbClients.add(createNewBbClient(parsedInput[1], Integer.parseInt(parsedInput[2]), listenPort++));
+                            bbClients.add(createNewBbClient(parsedInput[1], Integer.parseInt(parsedInput[2]), nextListenPort++));
                             System.out.println("Created client " + Integer.toString(bbClients.size() - 1));
                             break;
                         case "list":
@@ -57,8 +56,8 @@ public class BulletinBoardClientMain {
                             System.out.println(menu);
                             break;
                         case "terminate":
-                            System.out.println("Terminating.");
                             terminate = true;
+                            break;
                         default:
                             int clientIdx = getClientIdxIfInputValid(parsedInput, bbClients);
                             if (clientIdx >= 0) {
@@ -73,6 +72,7 @@ public class BulletinBoardClientMain {
                 }
             }
         } finally {
+            System.out.println("Terminating all clients and closing");
             for(BulletinBoardClient bbClient : bbClients) {
                 bbClient.terminateClient();
             }
@@ -121,6 +121,7 @@ public class BulletinBoardClientMain {
                     String newServerIp = parsedInput[2];
                     int newServerPort = Integer.parseInt(parsedInput[3]);
                     bbClient.moveToServerAt(newServerIp, newServerPort);
+                    System.out.println("Client " + clientIdx + " moved to " + newServerIp + " " + String.valueOf(newServerPort));
                     success = true;
                     break;
                 case "read":
@@ -140,9 +141,9 @@ public class BulletinBoardClientMain {
                     success = false;
             }
             if (success) {
-                System.out.println("Message command made for client " + Integer.toString(clientIdx));
+                System.out.println("Command made for client " + Integer.toString(clientIdx));
             } else {
-                System.out.println("Message command attempt failed.");
+                System.out.println("Command attempt failed.");
             }
         } catch (IllegalArgumentException i) {
             System.out.println("Invalid message format. Make sure you know the protocol!");
@@ -159,28 +160,29 @@ public class BulletinBoardClientMain {
         return newClient;
     }
 
-    private static void makeRandomPosts(List<BulletinBoardClient> bbClients, int numPostsAndRepliesPerClient) {
+    private static void makeRandomPosts(List<BulletinBoardClient> bbClients, int numPostsPerClient) {
         int simulatedMessageId = 0;
-        for(int i = 0; i < numPostsAndRepliesPerClient; i++) {
-            String title = "Test title " + i;
+        for(int i = 0; i < numPostsPerClient; i++) {
+            String title;
             String message = "Mindblowing insight " + i;
             for(int j = 0; j < bbClients.size(); j++) {
+                title = "Test title " + i + " for " + j;
                 bbClients.get(j).post(title, message);
                 System.out.println("Making test post for client " + j +
                         " with title " + title + " after simulated network delay");
                 simulateRandomNetworkDelay(10);
                 simulatedMessageId++;
             }
-            for(int j = 0; j < bbClients.size(); j++) {
-                String randomMessageToReplyTo = String.valueOf(
-                        ThreadLocalRandom.current().nextInt(0, simulatedMessageId));
-                bbClients.get(j).reply(randomMessageToReplyTo, title, message);
-                System.out.println("Making test reply for client " + j +
-                        " with title " + title + " to original post " + randomMessageToReplyTo +
-                        " after simulated network delay");
-                simulateRandomNetworkDelay(10);
-                simulatedMessageId++;
-            }
+//            for(int j = 0; j < bbClients.size(); j++) {
+//                String randomMessageToReplyTo = String.valueOf(
+//                        ThreadLocalRandom.current().nextInt(0, simulatedMessageId));
+//                bbClients.get(j).reply(randomMessageToReplyTo, title, message);
+//                System.out.println("Making test reply for client " + j +
+//                        " with title " + title + " to original post " + randomMessageToReplyTo +
+//                        " after simulated network delay");
+//                simulateRandomNetworkDelay(10);
+//                simulatedMessageId++;
+//            }
         }
     }
 

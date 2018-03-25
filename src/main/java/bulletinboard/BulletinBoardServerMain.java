@@ -1,5 +1,6 @@
 import bulletinboard.BulletinBoard;
 import communicate.Communicate;
+import server.ReadYourWritesPolicy;
 import server.ReplicatedPubSubServer;
 import server.SequentialConsistency;
 
@@ -11,10 +12,10 @@ public class BulletinBoardServerMain {
 
     public static void main(String[] args) {
         try {
-            if(args.length != 4) {
+            if(args.length != 6) {
                 System.out.println("Wrong number of arguments.");
                 System.out.println("\tUsage: java BulletinBoardServerMain " +
-                        "<serverIp> <serverPort> <heartbeatPort> <registryServerIp> <registryServerPort> " +
+                        "<serverIp> <serverPort> <heartbeatPort> <registryServerIp> " +
                         "<consistency model> <total num servers planned>");
                 System.out.println("\tValid consistency models:'sequential', 'readyourwrites', or 'quorum'");
                 return;
@@ -22,25 +23,26 @@ public class BulletinBoardServerMain {
             ReplicatedPubSubServer.Builder replicatedPubSubServerBuilder =
                     new ReplicatedPubSubServer.Builder(BulletinBoard.BBPROTOCOL,
                                                        InetAddress.getByName(args[0]),
-                                                       Integer.parseInt(args[3]))
+                                                       Integer.parseInt(args[5]))
                             .name(Communicate.NAME)
                             .serverPort(Integer.parseInt(args[1]))
-                            .heartbeatPort(nextHeartbeatPort++)
+                            .heartbeatPort(Integer.parseInt(args[2]))
+                            .registryServerAddress(args[3])
                             .shouldRetrieveMatchesAutomatically(false);
-
-            switch(args[2]) {
+            System.out.println(args[4]);
+            switch(args[4]) {
                 case "sequential":
                     replicatedPubSubServerBuilder.consistencyPolicy(new SequentialConsistency());
                     break;
                 case "readyourwrites":
-                    replicatedPubSubServerBuilder.consistencyPolicy(new SequentialConsistency());
+                    replicatedPubSubServerBuilder.consistencyPolicy(new ReadYourWritesPolicy());
                     break;
-                case "quorum":
-                    replicatedPubSubServerBuilder.consistencyPolicy(new SequentialConsistency());
-                    break;
+//                case "quorum":
+////                    replicatedPubSubServerBuilder.consistencyPolicy(new QuorumConsistency());
+//                    break;
                 default:
                     System.out.println("Consistency model not specified correctly.");
-                    System.out.println("\tValid consistency models:'sequential', 'readyourwrites', or 'quorum'");
+                    System.out.println("\tValid consistency models: sequential, readyourwrites, or quorum");
                     return;
             }
             ReplicatedPubSubServer replicatedPubSubServer = replicatedPubSubServerBuilder.build();

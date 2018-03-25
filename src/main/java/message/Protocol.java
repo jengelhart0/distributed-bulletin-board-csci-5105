@@ -219,13 +219,13 @@ public class Protocol {
         return result.toString();
     }
 
-    public String getRetrieveAllByClientQuery(String clientId) {
+    public String getRetrieveAllQuery() {
         StringBuilder message = new StringBuilder()
-                .append("")
+                .append(wildcard)
                 .append(delimiter)
-                .append(clientId);
+                .append(wildcard);
         for(int i = 0; i < numExternalFields + 1; i++) {
-            message.append(delimiter).append("");
+            message.append(delimiter).append(wildcard);
         }
         return message.toString();
     }

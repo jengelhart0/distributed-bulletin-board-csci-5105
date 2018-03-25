@@ -4,11 +4,9 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.rmi.NotBoundException;
-import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static org.junit.Assert.assertTrue;
@@ -76,7 +74,7 @@ public class TestReadYourWritesConsistency extends ReadYourWritesClientSetup {
 //        }
         System.out.println("testClient is at " + testClient.getId() + " entering retrieve()");
         List<Message> results = testClient.retrieve(
-                new Message(testProtocol1, testProtocol1.getRetrieveAllByClientQuery(testClient.getId()), true));
+                new Message(testProtocol1, testProtocol1.getRetrieveAllQuery(), true));
 
         boolean found = false;
         for(Message message: results) {

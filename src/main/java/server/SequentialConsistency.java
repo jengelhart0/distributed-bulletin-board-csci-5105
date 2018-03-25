@@ -45,7 +45,7 @@ public class SequentialConsistency implements ConsistencyPolicy {
 
     @Override
     public boolean enforceOnPublish(Message message, String fromIp, int fromPort) throws IOException, NotBoundException {
-
+        System.out.println("In Sequential publish enforce");
         if(server.isCoordinator()) {
             // in this case, the message is from 1) a direct user client or 2) a non-coordinator peer. In both cases we
             // have a manager for fromIp/fromPort

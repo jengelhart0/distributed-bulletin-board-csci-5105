@@ -23,8 +23,8 @@ public class ReadYourWritesPolicy implements ConsistencyPolicy {
     public void enforceOnJoin(String clientIp, int clientPort, String finalizedClientId, String previousServer)
             throws IOException, NotBoundException, InterruptedException {
         if(previousServer != null) {
-            String retrieveAllByClientQuery = protocol.getRetrieveAllByClientQuery(finalizedClientId);
-            List<Message> retrieved = server.retrieveFromPeer(previousServer, new Message(protocol, retrieveAllByClientQuery, true));
+            String retrieveAllQuery = protocol.getRetrieveAllQuery();
+            List<Message> retrieved = server.retrieveFromPeer(previousServer, new Message(protocol, retrieveAllQuery, true));
             System.out.println(this.server.getThisServersIpPortString() + " retrieved on join cons enforcement: " + retrieved.toString() + " Adding to store");
             for(Message byClient: retrieved) {
                 // TODO: does this need to go through enforceOnPublish?
@@ -35,6 +35,7 @@ public class ReadYourWritesPolicy implements ConsistencyPolicy {
 
     @Override
     public boolean enforceOnPublish(Message message, String fromIp, int fromPort) throws IOException, NotBoundException, InterruptedException {
+        System.out.println("In ReadYourWrites publish enforce");
         return dispatcher.publish(message.asRawMessage(), fromIp, fromPort);
     }
 
