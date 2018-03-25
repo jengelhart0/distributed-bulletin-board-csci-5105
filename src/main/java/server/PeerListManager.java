@@ -91,6 +91,7 @@ class PeerListManager {
 //                        System.out.println("NUM active threads" + java.lang.Thread.activeCount());
                         Thread.sleep(1000);
                     }
+                    System.out.println(thisServer.getPort() + " leaving peer list monitor thread");
                 } catch (IOException e) {
                     LOGGER.log(Level.WARNING, "Detected registry server liaison finished execution." +
                             "Terminating peer list monitor. \nAssociated reason:\n");
@@ -118,10 +119,16 @@ class PeerListManager {
         if(peers.size() >= numExpectedServers) {
 //            System.out.println(thisServer.getPort() + ": discovered list of servers: " + peers.toString());
             peers.remove(serverIp.getHostAddress() + registryServerLiaison.getDelimiter() + serverPort);
+            // System.out.println("calling findAndJoinCoordinatorIfUnknown");
             findAndJoinCoordinatorIfUnknown(peers);
+            // System.out.println("calling joinDiscoveredPeers");
             joinDiscoveredPeers(peers);
+            // System.out.println("returned from joinDiscoveredPeers");
+
             // TODO: add back in after testing??
             //        leaveStalePeers(peers);
+        } else {
+          System.out.println("Only " + peers.size() + " peers");
         }
     }
 
@@ -139,7 +146,7 @@ class PeerListManager {
                 }
                 registerCoordinator(newCoordinatorLocation);
             }
-//            System.out.println(thisServer.getPort() + " signaling the coordinator is set to " + coordinator.getThisServersIpPortString());
+            // System.out.println(thisServer.getPort() + " signaling the coordinator is set to " + coordinator.getThisServersIpPortString());
             coordinatorSet.signalAll();
         } finally {
             coordinatorLock.unlock();
@@ -342,6 +349,11 @@ class PeerListManager {
     boolean messageIsFromCoordinator(String fromIp, int fromPort) throws IOException, NotBoundException {
         int coordPort;
         coordinatorLock.lock();
+        System.out.println("coordinatorIp " + getCoordinatorIp());
+        System.out.println("fromIp " + fromIp);
+        System.out.println("coordinatorPort " + fromCoordinatorPort);
+        System.out.println("fromPort " + fromPort);
+
         try {
             if (fromCoordinatorPort < 0) {
                 throw new IllegalArgumentException("Tried to check if messageIsFromCoordinator but fromCoordinatorPort" +

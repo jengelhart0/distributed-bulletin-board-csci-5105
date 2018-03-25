@@ -20,6 +20,11 @@ public class BulletinBoardServerMain {
                 System.out.println("\tValid consistency models:'sequential', 'readyourwrites', or 'quorum'");
                 return;
             }
+            if(args[0].contains("127") || args[3].contains("127")) {
+              System.out.println("Do NOT use loopback address for server or registry server:\n" +
+                      "use external IP, otherwise unexpected behavior will result.");
+            }
+
             ReplicatedPubSubServer.Builder replicatedPubSubServerBuilder =
                     new ReplicatedPubSubServer.Builder(BulletinBoard.BBPROTOCOL,
                                                        InetAddress.getByName(args[0]),

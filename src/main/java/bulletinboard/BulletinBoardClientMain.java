@@ -166,12 +166,15 @@ public class BulletinBoardClientMain {
             String title;
             String message = "Mindblowing insight " + i;
             for(int j = 0; j < bbClients.size(); j++) {
-                title = "Test title " + i + " for " + j;
+                title = "Test title " + i + " for client " + j;
                 bbClients.get(j).post(title, message);
-                System.out.println("Making test post for client " + j +
-                        " with title " + title + " after simulated network delay");
                 simulateRandomNetworkDelay(10);
                 simulatedMessageId++;
+            }
+            // Only periodically print update
+            if(i % 100 == 0) {
+                System.out.println("Making custom test post " + i + " for all clients " +
+                      " after simulated network delay");
             }
 //            for(int j = 0; j < bbClients.size(); j++) {
 //                String randomMessageToReplyTo = String.valueOf(
