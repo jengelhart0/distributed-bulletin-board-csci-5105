@@ -19,7 +19,7 @@ public class PairedKeyMessageStore implements MessageStore {
     }
 
     @Override
-    public SortedSet<String> retrieve(Message subscription) {
+    public SortedSet<String> retrieve(Message subscription, int limit) {
         if (!subscription.isSubscription()) {
             throw new IllegalArgumentException("Store retrieve() received non-subscription message.");
         }

@@ -1,6 +1,7 @@
 package server;
 
 import client.Client;
+import client.ClientUtils;
 import communicate.Communicate;
 import message.Message;
 import message.Protocol;
@@ -161,7 +162,7 @@ class PeerListManager {
     private Client createCoordinatorClient(String newCoordinatorLocation) throws IOException, NotBoundException {
         Client coordinatorClient = null;
         while(coordinatorClient == null) {
-            coordinatorClient = tryToCreateNewClientAt(nextPeerListenPort++);
+            coordinatorClient = ClientUtils.tryToCreateNewClientAt(protocol, nextPeerListenPort++);
         }
         String coordinatorIp = ServerUtils.getIpFromIpPortString(newCoordinatorLocation, protocol);
         int coordinatorPort = ServerUtils.getPortFromIpPortString(newCoordinatorLocation, protocol);
@@ -216,14 +217,7 @@ class PeerListManager {
         }
     }
 
-    private Client tryToCreateNewClientAt(int listenPort) throws IOException, NotBoundException {
-        try {
-            return new Client(protocol, listenPort);
-        } catch (BindException e) {
 
-            return null;
-        }
-    }
 
 //    private void leaveStalePeers(Set<String> peers) {
 //        for(String server: clientsForReplicatedPeers.keySet()) {

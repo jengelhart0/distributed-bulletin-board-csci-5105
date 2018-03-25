@@ -6,9 +6,6 @@ import message.Protocol;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.util.*;
 import java.util.logging.Level;
@@ -170,7 +167,7 @@ public class ClientManager implements CommunicationManager {
     private Set<String> getSubscriptionMatches(Message[] subscriptionsToMatch, MessageStore store) {
         Set<String> toDeliver = new HashSet<>();
         for(Message subscription: subscriptionsToMatch) {
-            toDeliver.addAll(store.retrieve(subscription));
+            toDeliver.addAll(store.retrieve(subscription, ));
         }
         return toDeliver;
     }
