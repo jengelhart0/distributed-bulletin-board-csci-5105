@@ -1,5 +1,4 @@
-package bulletinboard;
-
+import bulletinboard.BulletinBoard;
 import communicate.Communicate;
 import server.ReplicatedPubSubServer;
 import server.SequentialConsistency;
@@ -8,15 +7,17 @@ import java.io.IOException;
 import java.net.InetAddress;
 
 public class BulletinBoardServerMain {
-    public static int nextHeartbeatPort = 9453;
+    private static int nextHeartbeatPort = 9453;
 
     public static void main(String[] args) {
         try {
-            if(args.length != 3) {
+            if(args.length != 4) {
                 System.out.println("Wrong number of arguments.");
                 System.out.println("\tUsage: java BulletinBoardServerMain " +
-                        "<serverIp> <serverPort> <consistency model> <total num servers planned>");
+                        "<serverIp> <serverPort> <heartbeatPort> <registryServerIp> <registryServerPort> " +
+                        "<consistency model> <total num servers planned>");
                 System.out.println("\tValid consistency models:'sequential', 'readyourwrites', or 'quorum'");
+                return;
             }
             ReplicatedPubSubServer.Builder replicatedPubSubServerBuilder =
                     new ReplicatedPubSubServer.Builder(BulletinBoard.BBPROTOCOL,

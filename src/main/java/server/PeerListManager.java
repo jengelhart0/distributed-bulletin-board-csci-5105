@@ -196,7 +196,7 @@ class PeerListManager {
 
                 Client peerClient = null;
                 while(peerClient == null) {
-                    peerClient = tryToCreateNewClientAt(this.nextPeerListenPort++);
+                    peerClient = ClientUtils.tryToCreateNewClientAt(protocol, this.nextPeerListenPort++);
 //                    if (peerClient != null) {
 //                        System.out.println("Created client for peer " + server + " at "
 //                                + nextPeerListenPort + " for " + thisServer.getThisServersIpPortString());

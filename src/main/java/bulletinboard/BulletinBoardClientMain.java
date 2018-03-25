@@ -1,5 +1,5 @@
-package bulletinboard;
-
+import bulletinboard.BulletinBoardClient;
+import bulletinboard.BulletinBoard;
 import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.util.ArrayList;
@@ -162,16 +162,34 @@ public class BulletinBoardClientMain {
     private static void makeRandomPosts(List<BulletinBoardClient> bbClients, int numPostsAndRepliesPerClient) {
         int simulatedMessageId = 0;
         for(int i = 0; i < numPostsAndRepliesPerClient; i++) {
-            for(BulletinBoardClient bbClient: bbClients) {
-                bbClient.post("Test title " + i, "Mindblowing insight " + i);
+            String title = "Test title " + i;
+            String message = "Mindblowing insight " + i;
+            for(int j = 0; j < bbClients.size(); j++) {
+                bbClients.get(j).post(title, message);
+                System.out.println("Making test post for client " + j +
+                        " with title " + title + " after simulated network delay");
+                simulateRandomNetworkDelay(10);
                 simulatedMessageId++;
             }
-            for(BulletinBoardClient bbClient: bbClients) {
+            for(int j = 0; j < bbClients.size(); j++) {
                 String randomMessageToReplyTo = String.valueOf(
                         ThreadLocalRandom.current().nextInt(0, simulatedMessageId));
-                bbClient.reply(randomMessageToReplyTo, "Test title " + i, "Mindblowing insight " + i);
+                bbClients.get(j).reply(randomMessageToReplyTo, title, message);
+                System.out.println("Making test reply for client " + j +
+                        " with title " + title + " to original post " + randomMessageToReplyTo +
+                        " after simulated network delay");
+                simulateRandomNetworkDelay(10);
                 simulatedMessageId++;
             }
+        }
+    }
+
+    public static void simulateRandomNetworkDelay(int maxDelay) {
+        int randomDelay = ThreadLocalRandom.current().nextInt(0, maxDelay);
+        try {
+            Thread.sleep(randomDelay);
+        } catch (InterruptedException e) {
+            System.out.println("Thread interrupting while sleeping in simulateRandomNetworkDelay.");
         }
     }
 

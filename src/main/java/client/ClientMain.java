@@ -113,7 +113,7 @@ public class ClientMain {
 
         System.out.println(resultMessage);
 
-        if(testHighLoad(remoteServerIp, 300, protocol, publications1, subscriptions1)) {
+        if(testHighLoad(remoteServerIp, 200, protocol, publications1, subscriptions1)) {
             resultMessage = "Test high load PASSED.";
         } else {
             resultMessage = "Test high load FAILED.";

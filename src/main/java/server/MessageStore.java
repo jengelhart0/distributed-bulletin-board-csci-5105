@@ -5,6 +5,6 @@ import message.Message;
 import java.util.Set;
 
 public interface MessageStore {
-    Set<String> retrieve(Message subscription, int limit);
+    Set<String> retrieve(Message subscription);
     boolean publish(Message message);
 }
