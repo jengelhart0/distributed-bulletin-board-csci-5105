@@ -48,12 +48,15 @@ public class ClientManager implements CommunicationManager {
     }
 
     private void initializeClientMessageSocket() throws IOException {
-        clientMessageSocket = new Socket(clientIp, clientPort);
-        clientMessageSocket.setReceiveBufferSize(clientMessageSocket.getReceiveBufferSize() * 2);
-        clientMessageSocket.setKeepAlive(true);
-        writer = new BufferedWriter(
-                new OutputStreamWriter(
-                        clientMessageSocket.getOutputStream()));
+        // reserved for internal server use, when no messages will be returned
+        if(!(clientPort == -1)) {
+            clientMessageSocket = new Socket(clientIp, clientPort);
+            clientMessageSocket.setReceiveBufferSize(clientMessageSocket.getReceiveBufferSize() * 2);
+            clientMessageSocket.setKeepAlive(true);
+            writer = new BufferedWriter(
+                    new OutputStreamWriter(
+                            clientMessageSocket.getOutputStream()));
+        }
     }
 
     public Runnable task(Message message, MessageStore store, Call call) {
@@ -115,7 +118,6 @@ public class ClientManager implements CommunicationManager {
     public void retrieve(Message queryMessage, MessageStore store) {
         Set<String> toDeliver = getSingleQueryMatches(queryMessage, store);
         int numRetrieved = toDeliver.size();
-        System.out.println("Delivering to client " + clientId + " " + toDeliver.toString());
         String retrieveNotification = protocol.buildRetrieveNotification(queryMessage.asRawMessage(), numRetrieved);
         deliverControlMessage(new Message(protocol, retrieveNotification, true));
         deliverPublications(toDeliver, protocol.getMessageSize());

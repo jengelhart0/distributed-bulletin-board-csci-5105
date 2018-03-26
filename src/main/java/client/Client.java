@@ -151,12 +151,12 @@ public class Client implements Runnable {
     }
 
     private boolean communicateWithRemote(Message message, RemoteMessageCall call) {
+        boolean isCallSuccessful;
         try {
-            boolean isCallSuccessful;
             synchronized (communicateLock) {
                 isCallSuccessful = makeCall(message, call);
             }
-            if (!isCallSuccessful) {
+            if (!isCallSuccessful && !call.toString().equals("LEAVE")) {
                 throw new RuntimeException("RMI call " + call.toString() + " returned false.");
             }
         } catch (NotBoundException | IOException | IllegalArgumentException | InterruptedException e) {
@@ -164,16 +164,14 @@ public class Client implements Runnable {
             e.printStackTrace();
             return false;
         }
-        return true;
+        return isCallSuccessful;
     }
 
     private boolean makeCall(Message message, RemoteMessageCall call)
             throws IOException, NotBoundException, InterruptedException {
 
         if (this.communicate == null) {
-            throw new IllegalArgumentException(
-                    "It appears client's remote communication is unestablished."
-            );
+            return false;
         }
 
         String address = this.localAddress.getHostAddress();
@@ -238,7 +236,7 @@ public class Client implements Runnable {
     @Override
     public void run() {
         try {
-            while(true) {
+            while (true) {
                 synchronized (terminateLock) {
                     if (terminate) {
                         break;
@@ -254,14 +252,13 @@ public class Client implements Runnable {
         } catch (RemoteException | InterruptedException e) {
             LOGGER.log(Level.SEVERE, e.toString());
             e.printStackTrace();
-        } finally {
-            cleanup();
         }
     }
 
     public void terminateClient() {
         synchronized (terminateLock) {
             this.terminate = true;
+            cleanup();
         }
     }
 

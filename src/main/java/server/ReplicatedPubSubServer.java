@@ -25,6 +25,8 @@ public class ReplicatedPubSubServer implements Communicate {
     private InetAddress ip;
     private int port;
 
+    private Registry rmiRegistry;
+
     private int maxClients;
     private int numClients;
 
@@ -198,6 +200,8 @@ public class ReplicatedPubSubServer implements Communicate {
         try {
             peerListManager.cleanup();
             dispatcher.cleanup();
+            UnicastRemoteObject.unexportObject(rmiRegistry,false);
+
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "While cleaning up server: " + e.toString());
             e.printStackTrace();
@@ -224,8 +228,8 @@ public class ReplicatedPubSubServer implements Communicate {
 
             Communicate stub =
                     (Communicate) UnicastRemoteObject.exportObject(this, 0);
-            Registry registry = LocateRegistry.createRegistry(this.port);
-            registry.rebind(this.name, stub);
+            this.rmiRegistry = LocateRegistry.createRegistry(this.port);
+            rmiRegistry.rebind(this.name, stub);
 //            LOGGER.log(Level.INFO, "ReplicatedPubSubServer bound");
         } catch (RemoteException re) {
             LOGGER.log(Level.SEVERE, re.toString());

@@ -46,7 +46,9 @@ class Dispatcher {
     }
 
     void cleanup() {
+        System.out.println("CLEANING UP SERVER");
         clientTaskExecutor.shutdown();
+        clientTaskExecutor = null;
         if(shouldRetrieveMatchesAutomatically) {
             subscriptionPullScheduler.tellThreadToStop();
         }

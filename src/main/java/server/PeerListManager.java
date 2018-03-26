@@ -84,12 +84,12 @@ class PeerListManager {
 //                    waitForOtherPeersToJoin();
                     int synchronizeClock = 0;
                     while (shouldThreadContinue()) {
+                        Thread.sleep(1000);
                         discoverReplicatedPeers();
 //                        System.out.println("At server " + thisServer.getPort() + ": size of clientsForReplicatedPeers is " +
 //                                clientsForReplicatedPeers.size());
 //                        System.out.println("NUM procs avail: " + String.valueOf(Runtime.getRuntime().availableProcessors()));
 //                        System.out.println("NUM active threads" + java.lang.Thread.activeCount());
-                        Thread.sleep(1000);
                         if(++synchronizeClock % 10 == 0) {
                             thisServer.getConsistencyPolicy().synchronize();
                             synchronizeClock = 0;
@@ -97,13 +97,12 @@ class PeerListManager {
                     }
                     System.out.println(thisServer.getPort() + " leaving peer list monitor thread");
                 } catch (IOException e) {
-                    LOGGER.log(Level.WARNING, "Detected registry server liaison finished execution." +
-                            "Terminating peer list monitor. \nAssociated reason:\n");
+                    LOGGER.log(Level.WARNING, "IOException in PeerListManager:\n");
                     e.printStackTrace();
                 } catch (InterruptedException | NotBoundException e) {
                     LOGGER.log(Level.SEVERE, e.toString());
                     e.printStackTrace();
-                    throw new RuntimeException("Failure in peer list monitor thread.");
+                    throw new RuntimeException("Runtime failure in peer list monitor thread.");
                 }
             }
         };
@@ -130,7 +129,7 @@ class PeerListManager {
             // System.out.println("returned from joinDiscoveredPeers");
 
             // TODO: add back in after testing??
-            //        leaveStalePeers(peers);
+//                    leaveStalePeers(peers);
         } else {
           System.out.println("Only " + peers.size() + " peers");
         }
@@ -230,15 +229,15 @@ class PeerListManager {
 
 
 
-//    private void leaveStalePeers(Set<String> peers) {
-//        for(String server: clientsForReplicatedPeers.keySet()) {
-//            if(!peers.contains(server)) {
-//                System.out.println("leaveStalePeers: removing peer client " + server);
-//                Client toRemove = clientsForReplicatedPeers.remove(server);
-//                toRemove.terminateClient();
-//            }
-//        }
-//    }
+    private void leaveStalePeers(Set<String> peers) {
+        for(String server: clientsForReplicatedPeers.keySet()) {
+            if(!peers.contains(server)) {
+                System.out.println("leaveStalePeers: removing peer client " + server);
+                Client toRemove = clientsForReplicatedPeers.remove(server);
+                toRemove.terminateClient();
+            }
+        }
+    }
 
     private void tellPeersTheFromCoordinatorPort() {
         for(Client peerClient: clientsForReplicatedPeers.values()) {
@@ -409,10 +408,10 @@ class PeerListManager {
     boolean messageIsFromCoordinator(String fromIp, int fromPort) throws IOException, NotBoundException {
         int coordPort;
         coordinatorLock.lock();
-        System.out.println("coordinatorIp " + getCoordinatorIp());
-        System.out.println("fromIp " + fromIp);
-        System.out.println("coordinatorPort " + fromCoordinatorPort);
-        System.out.println("fromPort " + fromPort);
+//        System.out.println("coordinatorIp " + getCoordinatorIp());
+//        System.out.println("fromIp " + fromIp);
+//        System.out.println("coordinatorPort " + fromCoordinatorPort);
+//        System.out.println("fromPort " + fromPort);
 
         try {
             if (fromCoordinatorPort < 0) {

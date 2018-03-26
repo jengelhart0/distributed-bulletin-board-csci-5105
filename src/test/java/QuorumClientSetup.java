@@ -8,7 +8,6 @@ import java.rmi.NotBoundException;
 public class QuorumClientSetup extends QuorumServerSetup {
 
     Client[] clients;
-    Client[] uninitializedClients;
     int numClientsPerServer = 10;
 
     @Before
@@ -26,13 +25,6 @@ public class QuorumClientSetup extends QuorumServerSetup {
                 clients[clientIdx++] = testClient;
             }
         }
-        // Create uninitialized clients, which can move among servers
-        int numUninitializedClients = 20;
-        uninitializedClients = new Client[numUninitializedClients];
-        listenPort = 33848;
-        for(int i = 0; i < numUninitializedClients; i++) {
-            uninitializedClients[i] = new Client(testProtocol1, listenPort++);
-        }
     }
 
     @After
@@ -40,9 +32,6 @@ public class QuorumClientSetup extends QuorumServerSetup {
         System.out.println("Cleaning up test clients");
 
         for(Client client: clients) {
-            client.terminateClient();
-        }
-        for(Client client: uninitializedClients) {
             client.terminateClient();
         }
     }

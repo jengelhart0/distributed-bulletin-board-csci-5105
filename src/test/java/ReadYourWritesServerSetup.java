@@ -77,11 +77,11 @@ public class ReadYourWritesServerSetup {
             replicatedServers.put(nextServerPort++, testReplicatedPubSubServer);
         }
         serverPorts = new ArrayList<>(replicatedServers.keySet());
-        try {
-            Thread.sleep(1500);
-        } catch (InterruptedException e) {
-            LOGGER.log(Level.WARNING, "Thread interrupted while sleeping in setUpReplicatedServers.");
-        }
+//        try {
+//            Thread.sleep(1500);
+//        } catch (InterruptedException e) {
+//            LOGGER.log(Level.WARNING, "Thread interrupted while sleeping in setUpReplicatedServers.");
+//        }
     }
 
     @After

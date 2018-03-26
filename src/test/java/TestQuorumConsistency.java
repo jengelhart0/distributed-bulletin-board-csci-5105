@@ -1,7 +1,7 @@
 import client.Client;
 import message.Message;
+import org.junit.Test;
 
-import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.LinkedList;
 import java.util.List;
@@ -13,8 +13,11 @@ import static org.junit.Assert.assertTrue;
 public class TestQuorumConsistency extends QuorumClientSetup {
     private static final Logger LOGGER = Logger.getLogger( TestQuorumConsistency.class.getName() );
 
-    public void testQuorumConsistencySimple() throws RemoteException, NotBoundException {
-        if(numTestServers >= 3) {
+    @Test
+    public void testQuorumConsistencySimple() throws RemoteException {
+        // numTestServers that were set up should equal num test clients used here so we
+        // can check the number of messages retrieved for each unique message against the write quorum size
+        if(numTestServers == 3) {
             Client testClient1 = clients[0];
             Client testClient2 = clients[numClientsPerServer];
             Client testClient3 = clients[2 * numClientsPerServer];
@@ -51,8 +54,7 @@ public class TestQuorumConsistency extends QuorumClientSetup {
 //                Thread.sleep(500);
 //            } catch (InterruptedException e) {
 //                LOGGER.log(Level.WARNING,
-//                        "Interrupted while waiting to give publications a chance to " +
-//                                "propagate in testSequentialConsistencySimple");
+//                        "Interrupted while waiting to give publishes a chance to happen in TestQuorumConsistency");
 //                assertTrue(false);
 //            }
 
@@ -74,13 +76,14 @@ public class TestQuorumConsistency extends QuorumClientSetup {
             int numMessage1 = 0, numMessage2 = 0, numMessage3 = 0;
             for(List<Message> resultList: resultLists) {
                 for (Message m : resultList) {
-                    if (m.asRawMessage().equals(message1)) {
+                    String processedMessage = testProtocol1.stripPadding(m.withoutInternalFields());
+                    if (processedMessage.equals(message1)) {
                         numMessage1++;
                     }
-                    if (m.asRawMessage().equals(message2)) {
+                    if (processedMessage.equals(message2)) {
                         numMessage2++;
                     }
-                    if (m.asRawMessage().equals(message3)) {
+                    if (processedMessage.equals(message3)) {
                         numMessage3++;
                     }
                 }

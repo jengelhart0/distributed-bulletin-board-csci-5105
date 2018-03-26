@@ -9,7 +9,7 @@ import java.rmi.NotBoundException;
 public class ReadYourWritesClientSetup extends ReadYourWritesServerSetup {
 
     Client[] clients;
-    Client[] uninitializedClients;
+//    Client[] uninitializedClients;
     int numClientsPerServer = 10;
 
     @Before
@@ -25,13 +25,13 @@ public class ReadYourWritesClientSetup extends ReadYourWritesServerSetup {
                 clients[clientIdx++] = testClient;
             }
         }
-        // Create uninitialized clients, which can move among servers
-        int numUninitializedClients = 20;
-        uninitializedClients = new Client[numUninitializedClients];
-        listenPort = 33848;
-        for(int i = 0; i < numUninitializedClients; i++) {
-            uninitializedClients[i] = new Client(testProtocol1, listenPort++);
-        }
+//        // Create uninitialized clients, which can move among servers
+//        int numUninitializedClients = 20;
+//        uninitializedClients = new Client[numUninitializedClients];
+//        listenPort = 33848;
+//        for(int i = 0; i < numUninitializedClients; i++) {
+//            uninitializedClients[i] = new Client(testProtocol1, listenPort++);
+//        }
     }
 
     @After
@@ -39,8 +39,8 @@ public class ReadYourWritesClientSetup extends ReadYourWritesServerSetup {
         for(Client client: clients) {
             client.terminateClient();
         }
-        for(Client client: uninitializedClients) {
-            client.terminateClient();
-        }
+//        for(Client client: uninitializedClients) {
+//            client.terminateClient();
+//        }
     }
 }

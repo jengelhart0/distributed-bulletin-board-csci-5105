@@ -9,7 +9,7 @@ import java.rmi.NotBoundException;
 public class SequentialClientSetup extends SequentialServerSetup {
 
     Client[] clients;
-    Client[] uninitializedClients;
+//    Client[] uninitializedClients;
     int numClientsPerServer = 10;
 
     @Before
@@ -27,13 +27,13 @@ public class SequentialClientSetup extends SequentialServerSetup {
                 clients[clientIdx++] = testClient;
             }
         }
-        // Create uninitialized clients, which can move among servers
-        int numUninitializedClients = 20;
-        uninitializedClients = new Client[numUninitializedClients];
-        listenPort = 33848;
-        for(int i = 0; i < numUninitializedClients; i++) {
-            uninitializedClients[i] = new Client(testProtocol1, listenPort++);
-        }
+//        // Create uninitialized clients, which can move among servers
+//        int numUninitializedClients = 20;
+//        uninitializedClients = new Client[numUninitializedClients];
+//        listenPort = 33848;
+//        for(int i = 0; i < numUninitializedClients; i++) {
+//            uninitializedClients[i] = new Client(testProtocol1, listenPort++);
+//        }
     }
 
     @After
@@ -43,8 +43,8 @@ public class SequentialClientSetup extends SequentialServerSetup {
         for(Client client: clients) {
             client.terminateClient();
         }
-        for(Client client: uninitializedClients) {
-            client.terminateClient();
-        }
+//        for(Client client: uninitializedClients) {
+//            client.terminateClient();
+//        }
     }
 }

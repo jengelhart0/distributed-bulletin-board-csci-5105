@@ -30,7 +30,10 @@ public class QuorumServerSetup {
 
     QuorumServerSetup() {
         serverInterfaceName = "CommunicateTest";
-        numTestServers = 5;
+        // needs to match requirement in TestQuorumConsistency: need each server to have a 'representative' client so we
+        // can check the number of messages retrieved for each unique message against the write quorum
+        numTestServers = 3;
+
         try {
             testServerIp = InetAddress.getLocalHost().getHostAddress();
         } catch (UnknownHostException e) {
