@@ -1,8 +1,8 @@
 import message.Protocol;
 import org.junit.After;
 import org.junit.Before;
+import server.QuorumConsistency;
 import server.ReplicatedPubSubServer;
-import server.SequentialConsistency;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -15,18 +15,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class SequentialServerSetup {
-    private static final Logger LOGGER = Logger.getLogger( SequentialServerSetup.class.getName() );
+public class QuorumServerSetup {
+    private static final Logger LOGGER = Logger.getLogger( QuorumServerSetup.class.getName() );
 
     Map<Integer, ReplicatedPubSubServer> replicatedServers = new ConcurrentHashMap<>();
     List<Integer> serverPorts;
 
     String serverInterfaceName;
     int numTestServers;
+    int writeQuorum;
+    int readQuorum;
     String testServerIp;
     Protocol testProtocol1;
 
-    SequentialServerSetup() {
+    QuorumServerSetup() {
         serverInterfaceName = "CommunicateTest";
         numTestServers = 5;
         try {
@@ -47,25 +49,15 @@ public class SequentialServerSetup {
 
     }
 
-//    Protocol bulletinProtocol = new Protocol(
-//            new String[]{"messageId", "replyTo", "clientId"},
-//            new String[][]{
-//                    new String[]{""},
-//                    new String[]{""},
-//                    new String[]{""},
-//            },
-//            ";",
-//            "",
-//            256);
-
-
-
     @Before
     public void setUpReplicatedServers() throws IOException {
         System.out.println("Setting up test servers");
 
         int nextServerPort = 1099;
         int nextHearbeatPort = 9453;
+
+        this.writeQuorum = numTestServers / 2 + 1;
+        this.readQuorum = numTestServers + 1 - writeQuorum;
 
         for (int i = 0; i < numTestServers; i++) {
             ReplicatedPubSubServer testReplicatedPubSubServer =
@@ -74,7 +66,7 @@ public class SequentialServerSetup {
                             .serverPort(nextServerPort)
                             .heartbeatPort(nextHearbeatPort++)
                             .shouldRetrieveMatchesAutomatically(false)
-                            .consistencyPolicy(new SequentialConsistency())
+                            .consistencyPolicy(new QuorumConsistency(numTestServers, readQuorum, writeQuorum))
                             .build();
             testReplicatedPubSubServer.initialize();
             replicatedServers.put(nextServerPort++, testReplicatedPubSubServer);

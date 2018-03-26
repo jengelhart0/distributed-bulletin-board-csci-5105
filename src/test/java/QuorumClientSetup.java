@@ -5,8 +5,7 @@ import org.junit.Before;
 import java.io.IOException;
 import java.rmi.NotBoundException;
 
-
-public class SequentialClientSetup extends SequentialServerSetup {
+public class QuorumClientSetup extends QuorumServerSetup {
 
     Client[] clients;
     Client[] uninitializedClients;
