@@ -213,7 +213,6 @@ public class Client implements Runnable {
     }
 
     private void ensureThisHasId() {
-//        System.out.println("Trying to get id for client at listenport" + listenPort);
 
         if (id == null) {
             idReceivedByListenerLock.lock();
@@ -222,7 +221,6 @@ public class Client implements Runnable {
                     idHasBeenSet.await();
                 }
                 id = protocol.stripPadding(listener.getReceivedClientId());
-//                System.out.println("Id " + id + " received for client at listenport" + listenPort);
             } catch (InterruptedException e) {
                 LOGGER.log(Level.WARNING,
                         "Client interrupted while waiting for its ID to be set! " +

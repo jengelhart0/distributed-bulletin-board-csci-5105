@@ -109,9 +109,7 @@ public class TestSequentialConsistency extends SequentialClientSetup {
         List<Message> standard = results.get(0);
         for(int i = 0; i < expectedSize; i++) {
             String expected = standard.get(i).asRawMessage();
-//            System.out.println("expected: " + expected);
             for(int j = 1; j < results.size(); j++) {
-//                System.out.println("actual: " + results.get(j).get(i).asRawMessage());
                 assertTrue(results.get(j).get(i)
                         .asRawMessage()
                         .equals(expected));

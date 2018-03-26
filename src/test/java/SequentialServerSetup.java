@@ -36,7 +36,6 @@ public class SequentialServerSetup {
             e.printStackTrace();
             return;
         }
-        System.out.println(testServerIp);
 
         testProtocol1 = new Protocol(
                 Collections.singletonList("replyTo"),

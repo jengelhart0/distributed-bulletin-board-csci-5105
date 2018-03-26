@@ -42,8 +42,6 @@ class PeerListManager {
 
     private CoordinationState coordinationState;
 
-    // TODO: going to have to override equals/hashcode to make this work; base on ip/port? for checking client's last server for writes
-    // Alternatively, just make this a list and iterate through until you find the one that matches client's last server
 
     private ConcurrentMap<String, Client> clientsForReplicatedPeers;
     private int nextPeerListenPort;
@@ -81,15 +79,11 @@ class PeerListManager {
             @Override
             public void run() {
                 try {
-//                    waitForOtherPeersToJoin();
                     int synchronizeClock = 0;
                     while (shouldThreadContinue()) {
                         Thread.sleep(1000);
                         discoverReplicatedPeers();
-//                        System.out.println("At server " + thisServer.getPort() + ": size of clientsForReplicatedPeers is " +
-//                                clientsForReplicatedPeers.size());
-//                        System.out.println("NUM procs avail: " + String.valueOf(Runtime.getRuntime().availableProcessors()));
-//                        System.out.println("NUM active threads" + java.lang.Thread.activeCount());
+
                         if(++synchronizeClock % 10 == 0) {
                             thisServer.getConsistencyPolicy().synchronize();
                             synchronizeClock = 0;
@@ -109,36 +103,21 @@ class PeerListManager {
         new Thread(peerListMonitor).start();
     }
 
-//    private void waitForOtherPeersToJoin () {
-//        try {
-//            Thread.sleep(2000);
-//        } catch (InterruptedException e) {
-//            LOGGER.log(Level.SEVERE, "Interrupted waiting for other peers to join");
-//        }
-//    }
 
     private void discoverReplicatedPeers() throws IOException, NotBoundException {
         Set<String> peers = registryServerLiaison.getListOfServers();
         if(peers.size() >= numExpectedServers) {
-//            System.out.println(thisServer.getPort() + ": discovered list of servers: " + peers.toString());
             peers.remove(serverIp.getHostAddress() + registryServerLiaison.getDelimiter() + serverPort);
-            // System.out.println("calling findAndJoinCoordinatorIfUnknown");
             findAndJoinCoordinatorIfUnknown(peers);
-            // System.out.println("calling joinDiscoveredPeers");
             joinDiscoveredPeers(peers);
-            // System.out.println("returned from joinDiscoveredPeers");
 
-            // TODO: add back in after testing??
-//                    leaveStalePeers(peers);
         }
     }
 
     private void findAndJoinCoordinatorIfUnknown(Set<String> replicatedServers) throws IOException, NotBoundException {
-//        System.out.println(thisServer.getPort() + ": about to grab lock in findAndJoinCoordinator");
         coordinatorLock.lock();
         try {
             if(coordinator == null) {
-//                System.out.println(thisServer.getPort() + ": coordinator null, looking for it");
                 String newCoordinatorLocation = thisServer.getThisServersIpPortString();
                 for (String server : replicatedServers) {
                     if (server.compareTo(newCoordinatorLocation) < 0) {
@@ -147,7 +126,6 @@ class PeerListManager {
                 }
                 registerCoordinator(newCoordinatorLocation);
             }
-            // System.out.println(thisServer.getPort() + " signaling the coordinator is set to " + coordinator.getThisServersIpPortString());
             coordinatorSet.signalAll();
         } finally {
             coordinatorLock.unlock();
@@ -237,7 +215,6 @@ class PeerListManager {
                     false));
         }
     }
-
 
     Communicate getCoordinator() throws IOException, NotBoundException {
         Communicate coord = null;
@@ -347,7 +324,7 @@ class PeerListManager {
                             new Message(
                                     protocol,
                                     protocol.getRetrieveAllQuery(),
-                                    false));
+                                    true));
             for(Message message: peerMessages) {
                 allMessages.add(message.asRawMessage());
             }
@@ -358,7 +335,8 @@ class PeerListManager {
     private List<Client> getShuffledPeerClients(int quorumSize) {
         List<Client> shuffledPeerClients = new ArrayList<>(clientsForReplicatedPeers.values());
         if(shuffledPeerClients.size() < quorumSize) {
-            throw new IllegalArgumentException("getShuffledPeerClients: quorum request larger than num peer clients!");
+            LOGGER.log(Level.INFO, "Need at least 3 servers running for quorum consistency. Throwing exception: ");
+            throw new IllegalArgumentException("Try again with at least 3 servers");
         }
 
         Collections.shuffle(shuffledPeerClients);

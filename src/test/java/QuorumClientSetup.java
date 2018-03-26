@@ -13,7 +13,6 @@ public class QuorumClientSetup extends QuorumServerSetup {
     @Before
     public void setUpClients() throws IOException, NotBoundException {
         System.out.println("Setting up test clients");
-
         int listenPort;
         clients = new Client[numClientsPerServer * numTestServers];
         listenPort = 8888;

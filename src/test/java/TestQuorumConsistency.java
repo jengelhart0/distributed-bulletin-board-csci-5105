@@ -40,7 +40,6 @@ public class TestQuorumConsistency extends QuorumClientSetup {
                     testProtocol1,
                     message1,
                     false));
-            System.out.println("TestQuorum: After return from testClient1.publish()");
             testClient2.publish(new Message(
                     testProtocol1,
                     message2,

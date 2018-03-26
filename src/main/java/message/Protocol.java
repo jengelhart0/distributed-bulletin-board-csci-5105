@@ -255,7 +255,6 @@ public class Protocol {
     }
 
     public String buildRetrieveNotification(String query, int numRetrieved) {
-        //TODO: make this work
 
         String strippedQuery = stripPadding(query);
 
@@ -278,8 +277,7 @@ public class Protocol {
         }
         return message.substring(
                 0, message.indexOf(delimiter));
-//        String[] parsed = parse(message);
-//        return parsed[0];
+
     }
 
     public int getMessageIdAsInt(String message) {
@@ -294,7 +292,6 @@ public class Protocol {
         int firstDelimiterIdx = message.indexOf(delimiter);
         return message.substring(firstDelimiterIdx + 1, message.indexOf(delimiter, firstDelimiterIdx + 1));
 
-//        String[] parsed = parse(message);
-//        return parsed[1];
+
     }
 }

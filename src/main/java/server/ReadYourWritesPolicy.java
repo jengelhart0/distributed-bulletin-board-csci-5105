@@ -27,7 +27,6 @@ public class ReadYourWritesPolicy implements ConsistencyPolicy {
             List<Message> retrieved = server.retrieveFromPeer(previousServer, new Message(protocol, retrieveAllQuery, true));
             System.out.println(this.server.getThisServersIpPortString() + " retrieved on join cons enforcement: " + retrieved.toString() + " Adding to store");
             for(Message byClient: retrieved) {
-                // TODO: does this need to go through enforceOnPublish?
                 dispatcher.publish(byClient.asRawMessage(), clientIp, clientPort);
             }
         }

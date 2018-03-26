@@ -220,8 +220,7 @@ public class ReplicatedPubSubServer implements Communicate {
     }
 
     private void makeThisARemoteCommunicationServer() {
-//        LOGGER.log(Level.INFO, "IP " + this.ip.getHostAddress());
-//        LOGGER.log(Level.INFO, "Port " + Integer.toString(this.port));
+
 
         try {
             System.setProperty("java.rmi.server.hostname", this.ip.getHostAddress());
@@ -230,7 +229,6 @@ public class ReplicatedPubSubServer implements Communicate {
                     (Communicate) UnicastRemoteObject.exportObject(this, 0);
             this.rmiRegistry = LocateRegistry.createRegistry(this.port);
             rmiRegistry.rebind(this.name, stub);
-//            LOGGER.log(Level.INFO, "ReplicatedPubSubServer bound");
         } catch (RemoteException re) {
             LOGGER.log(Level.SEVERE, re.toString());
             re.printStackTrace();
@@ -265,7 +263,6 @@ public class ReplicatedPubSubServer implements Communicate {
     }
 
     private String generateAndReturnClientId(String ip, int port) throws IOException, NotBoundException {
-        // System.out.println(getThisServersIpPortString() + " going to getCoordinator() in Join() for new client ID");
         String newClientId = protocol.stripPadding(peerListManager.getCoordinator().requestNewClientId());
         dispatcher.setClientIdFor(ip, port, newClientId);
         dispatcher.returnClientIdToClient(ip, port, newClientId);
@@ -302,11 +299,7 @@ public class ReplicatedPubSubServer implements Communicate {
 
     @Override
     public boolean Publish(String Message, String IP, int Port) throws RemoteException {
-        //        System.out.println("Trying to add message " + Message + " to store, server port " + this.port);
 
-        // Commented out because servers will be publishing to each other through peerClients, but messages will contain
-        // original messageId/clientId
-        // return protocol.areInternalFieldsBlank(Message) && dispatcher.publish(Message, IP, Port);
         try {
             Message newMessage = new Message(protocol, Message, false);
             if(newMessage.isCoordinatorPortMessage()) {
@@ -333,7 +326,6 @@ public class ReplicatedPubSubServer implements Communicate {
         }
         // If message had no messageId, message is directly from a user client. Otherwise it should already have a messageId.
         if(messageId.isEmpty()) {
-            // TODO: this might not work: we may need to match coordinator with the right peerClient and make calls through that...
             messageId = getCoordinator().requestNewMessageId();
             newMessage.insertMessageId(messageId);
         }
@@ -350,10 +342,6 @@ public class ReplicatedPubSubServer implements Communicate {
         return peerListManager.getCoordinator();
     }
 
-//    @Override
-//    public boolean isCoordinatorKnown() throws RemoteException {
-//        return peerListManager.isCoordinatorKnown();
-//    }
 
     @Override
     public String requestNewMessageId() throws IOException, NotBoundException {
@@ -362,9 +350,7 @@ public class ReplicatedPubSubServer implements Communicate {
 
     @Override
     public String requestNewClientId() throws IOException, NotBoundException {
-//        System.out.println(this.getPort() + ": I was asked for a new client ID");
-//        System.out.println(this.getPort() + ": I think coordinator is: " + getCoordinator().getThisServersIpPortString());
-//        System.out.println(this.getPort() + ": My answer to isCoordinator(): " + isCoordinator());
+
         return peerListManager.requestNewClientId();
     }
 
@@ -414,14 +400,7 @@ public class ReplicatedPubSubServer implements Communicate {
     }
 
     ConsistencyPolicy getConsistencyPolicy() { return this.consistencyPolicy; }
-    // Misleading!! Mismatch between coordinator remote port and this servers peer coordinator clients listen port!
-//    String getCoordinatorIp() throws IOException, NotBoundException {
-//        return peerListManager.getCoordinatorIp();
-//    }
-//
-//    int getCoordinatorPort() throws IOException, NotBoundException {
-//        return peerListManager.getCoordinatorPort();
-//    }
+
 
     String getIp() {
         return ip.getHostAddress();

@@ -176,16 +176,6 @@ public class BulletinBoardClientMain {
                 System.out.println("Making custom test post " + i + " for all clients " +
                       " after simulated network delay");
             }
-//            for(int j = 0; j < bbClients.size(); j++) {
-//                String randomMessageToReplyTo = String.valueOf(
-//                        ThreadLocalRandom.current().nextInt(0, simulatedMessageId));
-//                bbClients.get(j).reply(randomMessageToReplyTo, title, message);
-//                System.out.println("Making test reply for client " + j +
-//                        " with title " + title + " to original post " + randomMessageToReplyTo +
-//                        " after simulated network delay");
-//                simulateRandomNetworkDelay(10);
-//                simulatedMessageId++;
-//            }
         }
     }
 

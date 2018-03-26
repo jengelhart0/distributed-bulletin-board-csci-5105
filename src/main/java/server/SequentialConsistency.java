@@ -30,43 +30,30 @@ public class SequentialConsistency implements ConsistencyPolicy {
 
     @Override
     public void enforceOnJoin(String clientIp, int clientPort, String finalizedClientId, String previousServer) throws IOException, NotBoundException, InterruptedException {
-        // TODO: do we really need the coordinator need to have every user client join it? Working hypoth: no.
-//        if(!server.isCoordinator()) {
-//            server.getCoordinator().Join(clientIp, clientPort, finalizedClientId, previousServer);
-//        }
+
     }
 
     @Override
     public void enforceOnLeave(String clientIp, int clientPort) throws IOException, NotBoundException, InterruptedException {
-//        if(!server.isCoordinator()) {
-//            server.getCoordinator().Leave(clientIp, clientPort);
-//        }
+
     }
 
     @Override
     public boolean enforceOnPublish(Message message, String fromIp, int fromPort) throws IOException, NotBoundException {
-//        System.out.println("In Sequential publish enforce");
         if(server.isCoordinator()) {
-//          System.out.println("Seq pub enf: I am coordinator");
             // in this case, the message is from 1) a direct user client or 2) a non-coordinator peer. In both cases we
             // have a manager for fromIp/fromPort
             sequentialPublish(message, fromIp, fromPort);
-//            System.out.println("Seq pub enf: I am coordinator, finished seqPub, now publishing to all peers");
             publishToAllPeersAsCoordinator(message);
 
         // case when the coordinator is publishing to this server.
         // All servers have manager for coordinator, since it joined through peerClient
         } else if( server.messageIsFromCoordinator(fromIp, fromPort) ) {
-//            System.out.println("Seq pub enf: Message is from Coord. Message: " + message.asRawMessage());
             sequentialPublish(message, fromIp, fromPort);
-//            System.out.println("Seq pub enf: I am NOT coordinator, finished seqPub");
         // case when this publication is from a 'real' client
         } else {
-//            System.out.println("Seq pub enf: Message is from actual client: Sending to coordinator ");
             server.publishToCoordinator(message);
-//            System.out.println("Seq pub enf: finished publishing to coord");
         }
-//        System.out.println("Leaving enforceOnPublish (last thing before return to client)");
         return true;
     }
 
