@@ -1,8 +1,6 @@
 Documentation for CSci 5105 Distributed Bulletin Board System
 Author: Joey Engelhart, engel429
 
-Below is README for the publish-subscribe system (repository available here: https://github.com/jengelhart0/publish-subscribe-csci-5105), as the bulletin board uses it as its core messaging but is still in progress.
-
 # System Description:
 
 This is a distributed pub-sub messaging system that uses UDP and Java RMI to communicate. Servers are replicated and  made
@@ -56,14 +54,14 @@ for the system. Whenever a client Join()s, it adds that client's map that maps I
 for that Client. When a subsequent remote invocation for that client arrives, it simply looks up the ClientManager for that client, creates a new task for that ClientManager on the task queue, and immediately
 returns success or failure to the client.
 
-### ClientManagers and the Thread Pool Executor
+### ClientManagers and the Thread Pool Executor (Project 1)
 
 The task queue is managed by a thread pool executor service. The basic structure is the following: after
 looking up the correct ClientManager for that client, it adds a task to the Thread Pool for that ClientManager that is appropriate to the API call made by the client. If the Client called Publish(...), e.g., a call to clientManager.publish(...) will be added to the task queue. When a thread becomes available
 for that task, it is immediately executed by the appropriate clientManager. This structure allows us to scale
 out as needed when demand increases, because the Thread Pool adjusts its size to the demand.
 
-### Communicating with the MessageStore
+### Communicating with the MessageStore (Project 1)
 
 ClientManagers maintain subscription lists as well as past publications for its client. When a publish(...)
 task is executed, the client manager communicates with the MessageStore to add the new publication, if it
@@ -74,7 +72,7 @@ adds a retrieve(...) task to the Thread Pool Executor for given ClientManagers. 
 for that retrieve(...) task, the ClientManager for that task asks the MessageStore for all matching publications that arrived after the last publication the ClientManager retrieved (which the ClientManager
 keeps track of). Once retrieved, the ClientManager sends these back to the client.
 
-### Messages, Protocols, and Matching
+### Messages, Protocols, and Matching (Project 1)
 
 The entire system is defined generically, in the following sense: the protocol used for sending,
 interpreting, and storing messages is injected as a parameter at the time of initialization. There are
@@ -120,7 +118,8 @@ Be sure to take note of the order. Run:
 
 Navigate to project root, cd to /build/classes/java/main. Run 'java BulletinBoardClientMain'.
 
-This begins interactive mode, where a menu will give you options.
+This begins interactive mode, where a menu will give you options. Be sure to type
+'terminate' at end of session to end it!
 
 # Testing Description:
 
@@ -133,7 +132,25 @@ This begins interactive mode, where a menu will give you options.
 * Read quorum consistency: reads by clients at any server retrieve highest message id in system.
 * Write quorum consistency: publication by clients at different servers causes all publications to be found at least N / 2 + 1servers.
 
-### Basic Messaging Behavior (from project 1)
+### How to run
+
+* The new tests for project 2 listed above are in JUnit, and you can use gradle
+to run them.
+* BE SURE the registry super server is running.
+* NOT recommended: simply running gradle cleanTest test. This leads to all tests passing, HOWEVER, it also causes errors because JUnit will try to execute in a staggered manner, and this causes initialization/cleanup exceptions as one test's Before overlaps another's After methods.
+* Instead, run each test class one at a time by running:
+  <gradle cleanTest test --tests \*<TestClassName>
+* For example: 'gradle cleanTest test -tests \*TestSequentialConsistency'
+(the backslash is an escape char in markdown (not part of the command)).
+* List of test classes:
+  * TestReadYourWritesServers
+  * TestSequentialServers
+  * TestQuorumServers
+  * TestReadYourWritesConsistency
+  * TestSequentialConsistency
+  * TestQuorumConsistency
+
+## Basic Messaging Behavior (from project 1)
 
 #### Client Side:
 * Run single publisher, single subscriber, with and without wildcard matching tests.

@@ -130,8 +130,6 @@ class PeerListManager {
 
             // TODO: add back in after testing??
 //                    leaveStalePeers(peers);
-        } else {
-          System.out.println("Only " + peers.size() + " peers");
         }
     }
 
@@ -198,20 +196,12 @@ class PeerListManager {
             String peerAddress = serverLocation[0];
             int peerPort = Integer.parseInt(serverLocation[1]);
 
-//            System.out.println("This server: " + thisServer.getThisServersIpPortString() + " Current Peer: " + server);
-//            System.out.println("clientsForReplicatedPeers");
-//            System.out.println(clientsForReplicatedPeers.keySet().toString());
             if(!clientsForReplicatedPeers.containsKey(server)) {
-//                System.out.println("No peer client for peer " + server + " at " + thisServer.getThisServersIpPortString());
 
                 Client peerClient = null;
                 while(peerClient == null) {
                     peerClient = ClientUtils.tryToCreateNewClientAt(protocol, this.nextPeerListenPort++);
-//                    if (peerClient != null) {
-//                        System.out.println("Created client for peer " + server + " at "
-//                                + nextPeerListenPort + " for " + thisServer.getThisServersIpPortString());
-//
-//                    }
+
                 }
                 peerClient.initializeRemoteCommunication(peerAddress, peerPort, serverInterfaceName);
                 clientsForReplicatedPeers.put(server, peerClient);
@@ -312,8 +302,6 @@ class PeerListManager {
 
     void publishToAllPeers(Message publication)  throws RemoteException {
         for(Client client: clientsForReplicatedPeers.values()) {
-//            System.out.println("Publishing to peer for " + client.getServer().getThisServersIpPortString() + "\n\t"
-//            + "message " + publication.asRawMessage());
             if (!client.publish(publication)) {
                 throw new RemoteException("publishToPeer: Tried to publish to a peer with no client in " +
                         "clientsForReplicatedPeers!");
@@ -386,19 +374,7 @@ class PeerListManager {
 
         return ip;
     }
-// Misleading!! Mismatch between coordinator remote port and this servers peer coordinator clients listen port!
-//
-//    int getCoordinatorPort() throws IOException, NotBoundException {
-//        String port;
-//
-//        String ipPort = getCoordinator().getThisServersIpPortString();
-//        String[] parsedIpPort = ipPort.split(protocol.getDelimiter());
-//        port = parsedIpPort[1];
-//
-//        return Integer.parseInt(port);
-//    }
 
-    //
     void setFromCoordinatorPort(int port) {
         coordinatorLock.lock();
         this.fromCoordinatorPort = port;
@@ -408,10 +384,6 @@ class PeerListManager {
     boolean messageIsFromCoordinator(String fromIp, int fromPort) throws IOException, NotBoundException {
         int coordPort;
         coordinatorLock.lock();
-//        System.out.println("coordinatorIp " + getCoordinatorIp());
-//        System.out.println("fromIp " + fromIp);
-//        System.out.println("coordinatorPort " + fromCoordinatorPort);
-//        System.out.println("fromPort " + fromPort);
 
         try {
             if (fromCoordinatorPort < 0) {

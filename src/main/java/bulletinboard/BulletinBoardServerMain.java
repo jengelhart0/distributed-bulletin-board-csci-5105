@@ -3,6 +3,7 @@ import communicate.Communicate;
 import server.ReadYourWritesPolicy;
 import server.ReplicatedPubSubServer;
 import server.SequentialConsistency;
+import server.QuorumConsistency;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -42,9 +43,12 @@ public class BulletinBoardServerMain {
                 case "readyourwrites":
                     replicatedPubSubServerBuilder.consistencyPolicy(new ReadYourWritesPolicy());
                     break;
-//                case "quorum":
-////                    replicatedPubSubServerBuilder.consistencyPolicy(new QuorumConsistency());
-//                    break;
+               case "quorum":
+                   int numTestServers = Integer.parseInt(args[5]);
+                   int writeQuorum = numTestServers / 2 + 1;
+                   int readQuorum = numTestServers + 1 - writeQuorum;
+                   replicatedPubSubServerBuilder.consistencyPolicy(new QuorumConsistency(numTestServers, readQuorum, writeQuorum));
+                   break;
                 default:
                     System.out.println("Consistency model not specified correctly.");
                     System.out.println("\tValid consistency models: sequential, readyourwrites, or quorum");
