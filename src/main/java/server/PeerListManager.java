@@ -12,8 +12,7 @@ import java.net.BindException;
 import java.net.InetAddress;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.Condition;
@@ -83,6 +82,7 @@ class PeerListManager {
             public void run() {
                 try {
 //                    waitForOtherPeersToJoin();
+                    int synchronizeClock = 0;
                     while (shouldThreadContinue()) {
                         discoverReplicatedPeers();
 //                        System.out.println("At server " + thisServer.getPort() + ": size of clientsForReplicatedPeers is " +
@@ -90,6 +90,10 @@ class PeerListManager {
 //                        System.out.println("NUM procs avail: " + String.valueOf(Runtime.getRuntime().availableProcessors()));
 //                        System.out.println("NUM active threads" + java.lang.Thread.activeCount());
                         Thread.sleep(1000);
+                        if(++synchronizeClock % 10 == 0) {
+                            thisServer.getConsistencyPolicy().synchronize();
+                            synchronizeClock = 0;
+                        }
                     }
                     System.out.println(thisServer.getPort() + " leaving peer list monitor thread");
                 } catch (IOException e) {
@@ -298,6 +302,15 @@ class PeerListManager {
         }
     }
 
+    void publishToCoordinator(Message message) throws IOException, NotBoundException {
+        String coordinatorIpPort = getCoordinator().getThisServersIpPortString();
+        Client coordinatorClient = clientsForReplicatedPeers.get(coordinatorIpPort);
+        if(coordinatorClient == null) {
+            throw new IllegalArgumentException("Exception trying to publishToCoordinator: Have no coordinatorClient");
+        }
+        coordinatorClient.publish(message);
+    }
+
     void publishToAllPeers(Message publication)  throws RemoteException {
         for(Client client: clientsForReplicatedPeers.values()) {
 //            System.out.println("Publishing to peer for " + client.getServer().getThisServersIpPortString() + "\n\t"
@@ -309,13 +322,60 @@ class PeerListManager {
         }
     }
 
-    void publishToCoordinator(Message message) throws IOException, NotBoundException {
-        String coordinatorIpPort = getCoordinator().getThisServersIpPortString();
-        Client coordinatorClient = clientsForReplicatedPeers.get(coordinatorIpPort);
-        if(coordinatorClient == null) {
-            throw new IllegalArgumentException("Exception trying to publishToCoordinator: Have no coordinatorClient");
+    boolean createWriteQuorum(Message publication, int quorumSize) throws RemoteException {
+        List<Client> shuffledPeerClients = getShuffledPeerClients(quorumSize);
+        int numSuccessful = 0;
+        int nextToTry = 0;
+        while(numSuccessful < quorumSize) {
+            if(shuffledPeerClients.get(nextToTry++).publish(publication)) {
+                numSuccessful++;
+            }
         }
-        coordinatorClient.publish(message);
+        return numSuccessful == quorumSize;
+    }
+
+    List<Message> createReadQuorum(Message query, int quorumSize) throws RemoteException {
+        List<Client> shuffledPeerClients = getShuffledPeerClients(quorumSize);
+
+        int highestMessageIdAtPeer;
+        Client bestChoice = shuffledPeerClients.get(0);
+        int highestMessageIdFound = bestChoice.getHighestMessageIdStoredAtServer();
+        Client currentPeerClient;
+        for(int i = 1; i < quorumSize; i++) {
+            currentPeerClient = shuffledPeerClients.get(i);
+            highestMessageIdAtPeer = currentPeerClient.getHighestMessageIdStoredAtServer();
+
+            if(highestMessageIdAtPeer > highestMessageIdFound) {
+                highestMessageIdFound = highestMessageIdAtPeer;
+                bestChoice = currentPeerClient;
+            }
+        }
+        return bestChoice.retrieve(query);
+    }
+
+    Set<String> getAllMessagesFromPeers() {
+        Set<String> allMessages = new HashSet<>();
+        for(Client peerClient: clientsForReplicatedPeers.values()) {
+            List<Message> peerMessages = peerClient.retrieve(
+                            new Message(
+                                    protocol,
+                                    protocol.getRetrieveAllQuery(),
+                                    false));
+            for(Message message: peerMessages) {
+                allMessages.add(message.asRawMessage());
+            }
+        }
+        return allMessages;
+    }
+
+    private List<Client> getShuffledPeerClients(int quorumSize) {
+        List<Client> shuffledPeerClients = new ArrayList<>(clientsForReplicatedPeers.values());
+        if(shuffledPeerClients.size() < quorumSize) {
+            throw new IllegalArgumentException("getShuffledPeerClients: quorum request larger than num peer clients!");
+        }
+
+        Collections.shuffle(shuffledPeerClients);
+        return shuffledPeerClients;
     }
 
     String getCoordinatorIp() throws IOException, NotBoundException {

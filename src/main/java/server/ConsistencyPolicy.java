@@ -12,6 +12,9 @@ public interface ConsistencyPolicy {
             throws IOException, NotBoundException, InterruptedException;
     boolean enforceOnPublish(Message message, String fromIp, int fromPort)
             throws IOException, NotBoundException, InterruptedException;
+    boolean enforceOnRetrieve(Message message, String fromIp, int fromPort)
+            throws IOException, NotBoundException, InterruptedException;
     void enforceOnLeave(String clientIp, int clientPort)
             throws IOException, NotBoundException, InterruptedException;
+    void synchronize();
 }

@@ -138,6 +138,10 @@ public class Client implements Runnable {
         }
     }
 
+    public int getHighestMessageIdStoredAtServer() throws RemoteException {
+        return this.communicate.getHighestMessageIdStored();
+    }
+
     private boolean ping() throws RemoteException {
         return this.communicate.Ping();
     }

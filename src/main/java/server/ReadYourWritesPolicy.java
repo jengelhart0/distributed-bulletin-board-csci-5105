@@ -40,7 +40,18 @@ public class ReadYourWritesPolicy implements ConsistencyPolicy {
     }
 
     @Override
+    public boolean enforceOnRetrieve(Message message, String fromIp, int fromPort) throws IOException, NotBoundException, InterruptedException {
+        // Nothing required for read-your-writes consistency
+        return true;
+    }
+
+    @Override
     public void enforceOnLeave(String clientIp, int clientPort) throws IOException, NotBoundException, InterruptedException {
+        // Nothing required for read-your-writes consistency
+    }
+
+    @Override
+    public void synchronize() {
         // Nothing required for read-your-writes consistency
     }
 

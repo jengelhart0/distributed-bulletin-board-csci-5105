@@ -12,10 +12,16 @@ public class PairedKeyMessageStore implements MessageStore {
     private Date lastStoreFlush;
     private Protocol protocol;
 
+    private int highestMessageIdStored;
+    private final Object highestMessageIdStoredLock = new Object();
+
+
     PairedKeyMessageStore(Protocol protocol) {
         this.store = new ConcurrentHashMap<>();
         this.lastStoreFlush = new Date();
         this.protocol = protocol;
+        this.highestMessageIdStored = -1;
+
     }
 
     @Override
@@ -74,7 +80,23 @@ public class PairedKeyMessageStore implements MessageStore {
             }
             listToAddPublicationTo.synchronizedAdd(message.asRawMessage());
             message.setLastRetrievedFor(condition, message.asRawMessage());
+            updateHighestMessageIdStored(message);
         }
         return true;
     }
+
+    private void updateHighestMessageIdStored(Message message) {
+        int messageId = Integer.parseInt(message.getMessageId());
+        synchronized (highestMessageIdStoredLock) {
+            this.highestMessageIdStored = messageId > highestMessageIdStored ? messageId : highestMessageIdStored;
+        }
+    }
+
+    @Override
+    public int getHighestMessageIdStored() {
+        synchronized (highestMessageIdStoredLock) {
+            return highestMessageIdStored;
+        }
+    }
+
 }

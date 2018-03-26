@@ -36,6 +36,8 @@ public class ReplicatedPubSubServer implements Communicate {
     private PeerListManager peerListManager;
     private ConsistencyPolicy consistencyPolicy;
 
+    private MessageStore store;
+
     private ReplicatedPubSubServer(Builder builder) throws IOException {
 
         this.name = builder.name;
@@ -44,6 +46,7 @@ public class ReplicatedPubSubServer implements Communicate {
         this.port = builder.serverPort;
         this.numServersInSystem = builder.numServersInSystem;
         this.maxClients = builder.maxClients;
+        this.store = builder.store;
 
         this.dispatcher = new Dispatcher(this.protocol, builder.store, builder.shouldRetrieveMatchesAutomatically);
         RegistryServerLiaison registryServerLiaison = new RegistryServerLiaison(
@@ -361,6 +364,11 @@ public class ReplicatedPubSubServer implements Communicate {
         return peerListManager.requestNewClientId();
     }
 
+    @Override
+    public int getHighestMessageIdStored() throws RemoteException {
+        return store.getHighestMessageIdStored();
+    }
+
     public Set<String> getListOfServers() throws IOException {
         return peerListManager.getListOfServers();
     }
@@ -377,6 +385,18 @@ public class ReplicatedPubSubServer implements Communicate {
         peerListManager.publishToAllPeers(publication);
     }
 
+    Set<String> getAllMessagesFromPeers() {
+        return peerListManager.getAllMessagesFromPeers();
+    }
+
+    boolean createWriteQuorum(Message publication, int quorumSize) throws RemoteException {
+        return peerListManager.createWriteQuorum(publication, quorumSize);
+    }
+
+    List<Message> createReadQuorum(Message queryMessage, int quorumSize) throws IOException {
+        return peerListManager.createReadQuorum(queryMessage, quorumSize);
+    }
+
     List<Message> retrieveFromPeer(String server, Message queryMessage) throws InterruptedException {
         return peerListManager.retrieveFromPeer(server, queryMessage);
     }
@@ -389,6 +409,7 @@ public class ReplicatedPubSubServer implements Communicate {
         return peerListManager.messageIsFromCoordinator(fromIp, fromPort);
     }
 
+    ConsistencyPolicy getConsistencyPolicy() { return this.consistencyPolicy; }
     // Misleading!! Mismatch between coordinator remote port and this servers peer coordinator clients listen port!
 //    String getCoordinatorIp() throws IOException, NotBoundException {
 //        return peerListManager.getCoordinatorIp();

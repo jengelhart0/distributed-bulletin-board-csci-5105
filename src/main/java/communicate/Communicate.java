@@ -25,4 +25,5 @@ public interface Communicate extends Remote {
     String requestNewClientId() throws IOException, NotBoundException;
     String requestNewMessageId() throws IOException, NotBoundException;
     String getThisServersIpPortString() throws RemoteException;
+    int getHighestMessageIdStored() throws RemoteException;
 }

@@ -70,6 +70,12 @@ public class SequentialConsistency implements ConsistencyPolicy {
         return true;
     }
 
+    @Override
+    public boolean enforceOnRetrieve(Message message, String fromIp, int fromPort) throws IOException, NotBoundException, InterruptedException {
+        // Nothing required for sequential consistency
+        return false;
+    }
+
     private void publishToAllPeersAsCoordinator(Message message) throws IOException, NotBoundException {
         if(!server.isCoordinator()) {
             throw new IllegalArgumentException("SequentialConsistency: Tried to publish to all peers without being coordinator");
@@ -113,5 +119,10 @@ public class SequentialConsistency implements ConsistencyPolicy {
 
         toPublishQueue.remove(currentMessageId);
         messageIdToPublisherIpPortString.remove(currentMessageId);
+    }
+
+    @Override
+    public void synchronize() {
+        // nothing required for sequential consistency.
     }
 }
